@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#141112"/>
+  <polygon points="300,0 372,0 212,512 140,512" fill="#d0152b"/>
+  <text x="256" y="300" text-anchor="middle" font-family="Arial Narrow, Arial, sans-serif" font-weight="900" font-style="italic" font-size="150" fill="#ffffff" letter-spacing="2">ASOA</text>
+</svg>
