@@ -22,6 +22,15 @@ export const parseTime = (str) => {
   return s > 0 ? s : undefined
 }
 
+// Formatage pendant la frappe : on ne garde que les chiffres et on place les « : »
+// depuis la droite (ss, puis mm, puis hh). 13040 -> 1:30:40, 4530 -> 45:30
+export const maskTime = (str) => {
+  const d = (str || '').replace(/\D/g, '').slice(0, 7)
+  if (d.length <= 2) return d
+  if (d.length <= 4) return `${d.slice(0, -2)}:${d.slice(-2)}`
+  return `${d.slice(0, -4)}:${d.slice(-4, -2)}:${d.slice(-2)}`
+}
+
 export const pace = (seconds, km) => {
   if (!seconds || !km) return null
   const p = seconds / km

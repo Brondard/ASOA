@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { api } from '../api/index.js'
 import { DISCIPLINES } from '../config.js'
-import { fmtTime, fullDate, fullName, km, pace, parseTime, seasonOf } from '../lib/format.js'
+import { fmtTime, fullDate, fullName, km, maskTime, pace, parseTime, seasonOf } from '../lib/format.js'
 import { recordBreakers } from '../lib/records.js'
 import { go, useData } from '../store.jsx'
 import { Avatar, ConfirmDelete, DiscChip, Empty, Field, Icon, PageHead, Sheet } from '../ui.jsx'
@@ -304,7 +304,8 @@ function BulkResults({ race, pending, onClose }) {
                 {r.status === 'ok' && (
                   <div className="bulk-fields">
                     <label><span>Temps</span>
-                      <input id={`b-time-${i}`} inputMode="numeric" placeholder="1:42:18" value={r.time} onChange={(e) => set(i, { time: e.target.value })} aria-invalid={!!errors[i]} />
+                      <input id={`b-time-${i}`} inputMode="numeric" autoComplete="off" placeholder="1:42:18" value={r.time}
+                        onChange={(e) => set(i, { time: maskTime(e.target.value) })} aria-invalid={!!errors[i]} />
                     </label>
                     <label><span>Scratch</span>
                       <input id={`b-rank-${i}`} type="number" min="1" value={r.rank} onChange={(e) => set(i, { rank: e.target.value })} />
@@ -321,7 +322,7 @@ function BulkResults({ race, pending, onClose }) {
             )
           })}
         </ul>
-        <p className="hint">« Pas couru » retire l'inscription. Quelqu'un a couru sans s'inscrire ? Ajoute-le ensuite avec le bouton « + Résultat ».</p>
+        <p className="hint">Pour le temps, tape juste les chiffres : 14218 devient 1:42:18. « Pas couru » retire l'inscription. Quelqu'un a couru sans s'inscrire ? Ajoute-le ensuite avec le bouton « + Résultat ».</p>
         <label className="check"><input id="b-warn" type="checkbox" checked={warn} onChange={(e) => setWarn(e.target.checked)} /> Prévenir le club : résultats en ligne</label>
         <div className="form-actions">
           <button className="btn btn-primary grow" type="submit">{nb ? `Enregistrer ${nb} résultat${nb > 1 ? 's' : ''}` : 'Enregistrer'}</button>
@@ -449,8 +450,9 @@ function ResultForm({ initial, race, onClose }) {
           </select>
         </Field>
         <div className="row2">
-          <Field label="Temps" hint="h:mm:ss ou mm:ss">
-            <input id="x-time" inputMode="numeric" value={f.time} onChange={set('time')} disabled={f.dnf} placeholder="1:42:18" />
+          <Field label="Temps" hint="Tape les chiffres : 14218 donne 1:42:18">
+            <input id="x-time" inputMode="numeric" autoComplete="off" value={f.time} disabled={f.dnf} placeholder="1:42:18"
+              onChange={(e) => setF({ ...f, time: maskTime(e.target.value) })} />
           </Field>
           <label className="check"><input id="x-dnf" type="checkbox" checked={f.dnf} onChange={set('dnf')} /> Abandon (DNF)</label>
         </div>
