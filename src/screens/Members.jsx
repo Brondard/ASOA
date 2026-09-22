@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api/index.js'
 import { CLUB, DISCIPLINES } from '../config.js'
 import { standings } from '../lib/challenge.js'
@@ -6,6 +6,9 @@ import { fmtTime, fullDate, fullName, km, seasonOf } from '../lib/format.js'
 import { go, useData } from '../store.jsx'
 import { Avatar, DiscChip, Empty, Field, Icon, PageHead, Sheet } from '../ui.jsx'
 import { Medal } from './Races.jsx'
+import { badgesFor } from '../lib/badges.js'
+import { RECORD_DISTANCES, personalRecords } from '../lib/records.js'
+import { disablePush, enablePush, isIOS, pushState } from '../lib/push.js'
 
 export default function Members() {
   const { profiles } = useData()
@@ -38,8 +41,9 @@ export default function Members() {
 }
 
 export function MemberDetail({ id, self }) {
-  const { profiles, races, results, me, isAdmin } = useData()
+  const { profiles, races, results, me, isAdmin, attendance, sessions } = useData()
   const [edit, setEdit] = useState(false)
+  const [showLocked, setShowLocked] = useState(false)
   const p = profiles.find((x) => x.id === id)
   const season = seasonOf(new Date())
 
@@ -53,8 +57,12 @@ export function MemberDetail({ id, self }) {
     const table = standings({ profiles, races, results, season })
     const s = table.find((r) => r.member_id === id)
     const totalKm = mine.filter((r) => r.time_seconds).reduce((a, r) => a + Number(r.race.distance_km), 0)
-    return { mine, seasonRank: s?.rank, seasonKm: s?.total || 0, totalKm, podiums: mine.filter((r) => r.podium).length }
-  }, [p, races, results, profiles, id, season])
+    return {
+      mine, seasonRank: s?.rank, seasonKm: s?.total || 0, totalKm, podiums: mine.filter((r) => r.podium).length,
+      records: personalRecords(id, results, races),
+      badges: badgesFor(id, { results, races, attendance, sessions }),
+    }
+  }, [p, races, results, profiles, id, season, attendance, sessions])
 
   if (!p) return <><PageHead back title="Adhérent introuvable" /></>
   const canEdit = p.id === me.id || isAdmin
@@ -78,6 +86,39 @@ export function MemberDetail({ id, self }) {
         <div><dt>Podiums</dt><dd>{data.podiums}</dd></div>
         <div><dt>Challenge {season.slice(2, 4)}-{season.slice(7)}</dt><dd>{data.seasonRank ? `${data.seasonRank}e` : '–'}</dd></div>
       </dl>
+
+      {self && <PushSettings />}
+
+      <h2 className="section-title">Records perso</h2>
+      <dl className="records">
+        {RECORD_DISTANCES.map((d) => {
+          const r = data.records[d.key]
+          return (
+            <div key={d.key} className={r ? '' : 'empty-rec'} onClick={() => r && go(`resultats/${r.race_id}`)}>
+              <dt>{d.label}</dt>
+              <dd>{r ? fmtTime(r.time_seconds) : '—'}</dd>
+              {r && <small>{r.race.name} · {new Date(r.race.race_date).getFullYear()}</small>}
+            </div>
+          )
+        })}
+      </dl>
+
+      <div className="table-head">
+        <h2 className="section-title">Badges <small className="count">{data.badges.filter((b) => b.earned).length}/{data.badges.length}</small></h2>
+        <button className="link-btn" onClick={() => setShowLocked(!showLocked)}>{showLocked ? 'Masquer ceux à gagner' : 'Voir ceux à gagner'}</button>
+      </div>
+      <ul className="badges">
+        {data.badges.filter((b) => b.earned || showLocked).map((b) => (
+          <li key={b.id} className={b.earned ? 'earned' : 'locked'} title={b.desc}>
+            <span className="b-icon" aria-hidden="true">{b.icon}</span>
+            <strong>{b.name}</strong>
+            <small>{b.desc}</small>
+            {!b.earned && b.goal > 1 && <span className="b-bar"><span style={{ width: `${(b.value / b.goal) * 100}%` }} /></span>}
+            {!b.earned && b.goal > 1 && <small className="b-prog">{Math.floor(b.value)}/{b.goal}</small>}
+          </li>
+        ))}
+      </ul>
+      {!showLocked && data.badges.every((b) => !b.earned) && <Empty>Pas encore de badge. Le premier arrive avec la première course !</Empty>}
 
       <h2 className="section-title">Résultats</h2>
       {data.mine.length === 0 ? <Empty>Aucun résultat pour l'instant.</Empty> : (
@@ -108,6 +149,52 @@ export function MemberDetail({ id, self }) {
       )}
       {edit && <ProfileForm p={p} onClose={() => setEdit(false)} />}
     </>
+  )
+}
+
+function PushSettings() {
+  const { setToast, notify } = useData()
+  const [state, setState] = useState('loading')
+  const [busy, setBusy] = useState(false)
+  useEffect(() => { pushState().then(setState).catch(() => setState('unsupported')) }, [])
+  const toggle = async () => {
+    setBusy(true)
+    try {
+      if (state === 'on') await disablePush()
+      else await enablePush()
+      const next = await pushState()
+      setState(next)
+      setToast({ text: next === 'on' ? 'Notifications activées sur cet appareil' : 'Notifications désactivées' })
+    } catch (e) {
+      setToast({ text: e.message, error: true })
+      setState(await pushState())
+    }
+    setBusy(false)
+  }
+  const text = {
+    loading: '…',
+    demo: 'En démo, les notifications sont simulées. Elles fonctionneront une fois l\'app en ligne.',
+    'not-configured': 'Les notifications ne sont pas encore configurées (clé VAPID manquante).',
+    'needs-install': 'Sur iPhone, ajoute d\'abord l\'app à l\'écran d\'accueil (Safari › Partager › « Sur l\'écran d\'accueil »), puis ouvre-la depuis l\'icône.',
+    unsupported: 'Ce navigateur ne gère pas les notifications.',
+    denied: `Tu as bloqué les notifications. Réactive-les dans les réglages ${isIOS() ? 'de l\'iPhone (Notifications › ASOA)' : 'du navigateur pour ce site'}.`,
+    off: 'Séances publiées ou annulées, rappel la veille, nouvelles courses, résultats en ligne.',
+    on: 'Activées sur cet appareil.',
+  }[state]
+  return (
+    <section className="push-box">
+      <span className="push-icon"><Icon name="bell" size={22} /></span>
+      <div>
+        <strong>Notifications</strong>
+        <p>{text}</p>
+      </div>
+      {state === 'on' && <button className="btn btn-ghost" onClick={() => notify('test')}>Tester</button>}
+      {(state === 'on' || state === 'off') && (
+        <button className={`btn ${state === 'on' ? 'btn-ghost' : 'btn-primary'}`} onClick={toggle} disabled={busy}>
+          {busy ? '…' : state === 'on' ? 'Désactiver' : 'Activer'}
+        </button>
+      )}
+    </section>
   )
 }
 

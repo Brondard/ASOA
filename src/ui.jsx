@@ -21,6 +21,7 @@ const paths = {
   logout: <path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h11" />,
   camera: <><path d="M4 8h3l2-3h6l2 3h3v11H4V8Z" /><circle cx="12" cy="13" r="3.5" /></>,
   chevron: <path d="m9 6 6 6-6 6" />,
+  bell: <><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15L6 16Z" /><path d="M10 20.5a2 2 0 0 0 4 0" /></>,
 }
 export const Icon = ({ name, size = 20 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" {...P} aria-hidden="true">{paths[name]}</svg>

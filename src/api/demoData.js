@@ -78,6 +78,27 @@ export function buildDemo() {
   }
   profiles.forEach((p) => delete p.level)
 
+  // --- Courses à venir + inscriptions -------------------------------------
+  const upcoming = [
+    ['Marathon de Bologne', '2027-03-07', 'Bologne (Italie)', 'running', 'Marathon', 42.2, true,
+      'Objectif club de la saison ! On vise 25 coureurs ASOA au départ.\nDéplacement en minibus le samedi matin, hébergement groupé réservé par le club (2 nuits). Plan d\'entraînement marathon de 16 semaines à partir de novembre.'],
+    ['Trail des Balcons d\'Azur', '2027-03-21', 'Mandelieu', 'trail', '28 km · 1300 D+', 28, false, null],
+    ['Triathlon de Cannes', '2027-04-11', 'Cannes', 'triathlon', 'Distance M', 51.5, false, null],
+    ['Semi-marathon de Nice', '2027-04-25', 'Nice', 'running', 'Semi-marathon', 21.1, false, null],
+  ].map(([name, race_date, location, discipline, format, distance_km, is_club_goal, description], i) => ({
+    id: uid('f', i), name, race_date, location, discipline, format, distance_km, is_club_goal, description,
+    registration_url: is_club_goal ? 'https://www.example.org/inscription' : null,
+  }))
+  races.push(...upcoming)
+  const registrations = []
+  upcoming.forEach((r, i) => {
+    const n = r.is_club_goal ? 17 : 3 + i * 2
+    ;[...profiles].sort(() => rnd() - 0.5).slice(0, n).forEach((p, j) => {
+      if (p.id === 'm-001' && !r.is_club_goal) return
+      registrations.push({ race_id: r.id, member_id: p.id, status: j % 4 === 3 ? 'interested' : 'going' })
+    })
+  })
+
   // --- Séances des 3 prochaines semaines ---------------------------------
   const PLAN = [
     { dow: 2, h: 18, m: 30, discipline: 'running', place: 0, title: 'Fractionné piste', dur: 90,
@@ -119,9 +140,32 @@ export function buildDemo() {
         address: pl.address,
         lat: pl.lat,
         lng: pl.lng,
+        min_participants: s.discipline === 'triathlon' ? 4 : null,
+        cancelled: false,
       })
     }
   }
 
-  return { profiles, races, results, sessions }
+  // --- Présences : réponses déjà données sur les séances -------------------
+  const attendance = []
+  sessions.forEach((s, i) => {
+    const n = Math.floor(rnd() * 14) + (s.title === 'Natation en mer' ? 1 : 3)
+    ;[...profiles].sort(() => rnd() - 0.5).slice(0, n).forEach((p) => {
+      if (p.id === 'm-001' && i % 3) return
+      attendance.push({ session_id: s.id, member_id: p.id, status: rnd() < 0.8 ? 'yes' : 'maybe' })
+    })
+  })
+  // Séances passées (pour le badge d'assiduité de la démo)
+  for (let w = 1; w <= 14; w++) {
+    const d = new Date(today)
+    d.setDate(d.getDate() - w * 7 + 1)
+    d.setHours(18, 30)
+    const id = uid('p', w)
+    sessions.push({ id, starts_at: d.toISOString(), duration_min: 90, discipline: 'running', title: 'Fractionné piste',
+      description: 'Séance passée.', location_name: PLACES[0].name, address: PLACES[0].address, lat: PLACES[0].lat, lng: PLACES[0].lng,
+      min_participants: null, cancelled: false })
+    ;['m-001', 'm-000', 'm-004', 'm-008', 'm-012'].forEach((m) => attendance.push({ session_id: id, member_id: m, status: 'yes' }))
+  }
+
+  return { profiles, races, results, sessions, attendance, registrations }
 }

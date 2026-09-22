@@ -19,6 +19,19 @@ function translate(msg) {
   return msg
 }
 
+// Supabase renvoie 1000 lignes max par requête : on pagine
+async function fetchAll(build) {
+  const size = 1000
+  let from = 0
+  const out = []
+  for (;;) {
+    const page = ok(await build().range(from, from + size - 1))
+    out.push(...page)
+    if (page.length < size) return out
+    from += size
+  }
+}
+
 // Retire les champs vides/non persistés avant écriture
 const clean = (row) => {
   const out = { ...row }
@@ -67,13 +80,43 @@ export const supabaseApi = {
 
   listSessions: async () => ok(await sb().from('sessions').select('*').order('starts_at')),
   saveSession: async (s) => ok(await sb().from('sessions').upsert(clean(s)).select().single()),
+  updateSession: async (id, patch) => ok(await sb().from('sessions').update(patch).eq('id', id).select().single()),
   deleteSession: async (id) => ok(await sb().from('sessions').delete().eq('id', id)),
 
   listRaces: async () => ok(await sb().from('races').select('*').order('race_date', { ascending: false })),
   saveRace: async (r) => ok(await sb().from('races').upsert(clean(r)).select().single()),
   deleteRace: async (id) => ok(await sb().from('races').delete().eq('id', id)),
 
-  listResults: async () => ok(await sb().from('results').select('*')),
+  listResults: () => fetchAll(() => sb().from('results').select('*').order('id')),
   saveResult: async (r) => ok(await sb().from('results').upsert(clean(r)).select().single()),
   deleteResult: async (id) => ok(await sb().from('results').delete().eq('id', id)),
+
+  // Présences aux séances
+  listAttendance: () => fetchAll(() => sb().from('session_attendance').select('session_id, member_id, status').order('session_id').order('member_id')),
+  async setAttendance(session_id, member_id, status) {
+    if (!status) return ok(await sb().from('session_attendance').delete().match({ session_id, member_id }))
+    ok(await sb().from('session_attendance').upsert({ session_id, member_id, status, updated_at: new Date().toISOString() }))
+  },
+
+  // Inscriptions aux courses
+  listRegistrations: () => fetchAll(() => sb().from('race_registrations').select('race_id, member_id, status').order('race_id').order('member_id')),
+  async setRegistration(race_id, member_id, status) {
+    if (!status) return ok(await sb().from('race_registrations').delete().match({ race_id, member_id }))
+    ok(await sb().from('race_registrations').upsert({ race_id, member_id, status }))
+  },
+
+  // Notifications push
+  async savePushSubscription(sub) {
+    const j = sub.toJSON()
+    ok(await sb().rpc('save_push_subscription', { p_endpoint: j.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth }))
+  },
+  async deletePushSubscription(endpoint) {
+    ok(await sb().from('push_subscriptions').delete().eq('endpoint', endpoint))
+  },
+  // Demande à l'Edge Function "notify" d'envoyer une notification
+  async notify(type, id) {
+    const { data, error } = await sb().functions.invoke('notify', { body: { type, id } })
+    if (error) throw new Error('Notification non envoyée : la fonction « notify » n\'est pas encore déployée ou a échoué.')
+    return data
+  },
 }

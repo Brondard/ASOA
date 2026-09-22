@@ -16,6 +16,9 @@ export default defineConfig(({ mode }) => {
         ? viteSingleFile()
         : VitePWA({
             registerType: 'autoUpdate',
+            strategies: 'injectManifest',
+            srcDir: 'src',
+            filename: 'sw.js',
             includeAssets: ['icon.svg', 'apple-touch-icon.png'],
             manifest: {
               name: 'ASOA Antibes',
@@ -32,7 +35,6 @@ export default defineConfig(({ mode }) => {
                 { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
               ],
             },
-            workbox: { navigateFallback: 'index.html' },
           }),
     ],
   }

@@ -2,13 +2,18 @@ import { useMemo, useState } from 'react'
 import { api } from '../api/index.js'
 import { DISCIPLINES } from '../config.js'
 import { fmtTime, fullDate, fullName, km, pace, parseTime, seasonOf } from '../lib/format.js'
+import { recordBreakers } from '../lib/records.js'
 import { go, useData } from '../store.jsx'
 import { Avatar, ConfirmDelete, DiscChip, Empty, Field, Icon, PageHead, Sheet } from '../ui.jsx'
 
 export const Medal = ({ n }) => (n ? <span className={`medal medal-${n}`} title={`Podium catégorie : ${n}e`}>{n}</span> : null)
 
+const todayISO = () => new Date().toLocaleDateString('sv-SE') // AAAA-MM-JJ en heure locale
+export const isUpcoming = (r) => r.race_date >= todayISO()
+export const daysTo = (d) => Math.round((new Date(d + 'T12:00:00') - new Date(todayISO() + 'T12:00:00')) / 864e5)
+
 export default function Races() {
-  const { races, results, me, isAdmin } = useData()
+  const { races, results, me, isAdmin, registrations } = useData()
   const [mine, setMine] = useState(false)
   const [editing, setEditing] = useState(null)
 
@@ -21,6 +26,7 @@ export default function Races() {
     })
     const out = []
     for (const r of races) {
+      if (isUpcoming(r) && !results.some((x) => x.race_id === r.id)) continue
       if (mine && !myRes[r.id]) continue
       const s = seasonOf(r.race_date)
       const item = { ...r, n: count[r.id] || 0, my: myRes[r.id] }
@@ -31,6 +37,11 @@ export default function Races() {
     return out
   }, [races, results, me.id, mine])
 
+  const upcoming = useMemo(() => races
+    .filter((r) => isUpcoming(r) && !results.some((x) => x.race_id === r.id))
+    .filter((r) => !mine || registrations.some((g) => g.race_id === r.id && g.member_id === me.id))
+    .sort((a, b) => (b.is_club_goal - a.is_club_goal) || a.race_date.localeCompare(b.race_date)), [races, results, registrations, mine, me.id])
+
   return (
     <>
       <PageHead
@@ -40,10 +51,17 @@ export default function Races() {
       />
       <div className="segmented">
         <button className={!mine ? 'on' : ''} onClick={() => setMine(false)}>Tout le club</button>
-        <button className={mine ? 'on' : ''} onClick={() => setMine(true)}>Mes résultats</button>
+        <button className={mine ? 'on' : ''} onClick={() => setMine(true)}>Mes courses</button>
       </div>
 
-      {bySeason.length === 0 && <Empty>{mine ? 'Tu n\'as pas encore de résultat enregistré.' : 'Aucune course pour l\'instant.'}</Empty>}
+      {upcoming.length > 0 && (
+        <section className="season">
+          <h2 className="season-title">À venir</h2>
+          <div className="upcoming">{upcoming.map((r) => <UpcomingCard key={r.id} r={r} />)}</div>
+        </section>
+      )}
+
+      {bySeason.length === 0 && upcoming.length === 0 && <Empty>{mine ? 'Tu n\'as pas encore de résultat enregistré.' : 'Aucune course pour l\'instant.'}</Empty>}
 
       {bySeason.map((g) => (
         <section key={g.season} className="season">
@@ -78,8 +96,49 @@ export default function Races() {
   )
 }
 
+export const REG = [['going', "J'y vais"], ['interested', 'Intéressé']]
+
+export function RegisterButtons({ race }) {
+  const { registrations, me, setRegistration } = useData()
+  const mine = registrations.find((g) => g.race_id === race.id && g.member_id === me.id)?.status
+  return (
+    <div className="rsvp two" role="group" aria-label="Ta participation">
+      {REG.map(([k, label]) => (
+        <button key={k} className={`rsvp-${k === 'going' ? 'yes' : 'maybe'} ${mine === k ? 'on' : ''}`} aria-pressed={mine === k}
+          onClick={(e) => { e.stopPropagation(); setRegistration(race.id, mine === k ? null : k) }}>{label}</button>
+      ))}
+    </div>
+  )
+}
+
+function UpcomingCard({ r }) {
+  const { registrations, profiles } = useData()
+  const byId = Object.fromEntries(profiles.map((p) => [p.id, p]))
+  const going = registrations.filter((g) => g.race_id === r.id && g.status === 'going')
+  const interested = registrations.filter((g) => g.race_id === r.id && g.status === 'interested')
+  const d = daysTo(r.race_date)
+  return (
+    <article className={`up-card ${r.is_club_goal ? 'goal' : ''}`} onClick={() => go(`resultats/${r.id}`)}>
+      {r.is_club_goal && <span className="goal-tag">Objectif club</span>}
+      <div className="up-head">
+        <div className="countdown"><span>J-</span>{d}</div>
+        <div className="up-id">
+          <span className="race-date">{fullDate(r.race_date)}{r.location ? ` · ${r.location}` : ''}</span>
+          <h3>{r.name}</h3>
+          <span className="race-meta"><DiscChip d={r.discipline} /> {r.format || `${km(r.distance_km)} km`}</span>
+        </div>
+      </div>
+      <div className="who-row static">
+        <span className="stack">{going.slice(0, 6).map((g) => <Avatar key={g.member_id} p={byId[g.member_id]} size={26} />)}</span>
+        <span className="who-count"><strong>{going.length}</strong> ASOA au départ{interested.length > 0 && <small> · {interested.length} intéressé{interested.length > 1 ? 's' : ''}</small>}</span>
+      </div>
+      <RegisterButtons race={r} />
+    </article>
+  )
+}
+
 export function RaceDetail({ id }) {
-  const { races, results, profiles, isAdmin, me } = useData()
+  const { races, results, profiles, isAdmin, me, registrations, notify } = useData()
   const [editRace, setEditRace] = useState(false)
   const [editRes, setEditRes] = useState(null)
   const race = races.find((r) => r.id === id)
@@ -91,6 +150,7 @@ export function RaceDetail({ id }) {
       .sort((a, b) => (a.time_seconds ?? Infinity) - (b.time_seconds ?? Infinity))
   }, [results, profiles, id])
 
+  const prs = useMemo(() => recordBreakers(results, races), [results, races])
   if (!race) return <><PageHead back title="Course introuvable" /><Empty>Cette course a peut-être été supprimée.</Empty></>
 
   return (
@@ -104,12 +164,21 @@ export function RaceDetail({ id }) {
         <div><dt>Lieu</dt><dd>{race.location || '—'}</dd></div>
       </dl>
 
-      <div className="table-head">
-        <h2>{rows.length} adhérent{rows.length > 1 ? 's' : ''} au départ</h2>
-        {isAdmin && <button className="btn btn-primary" onClick={() => setEditRes({ race_id: id })}><Icon name="plus" size={18} /> Résultat</button>}
-      </div>
+      {isUpcoming(race) && rows.length === 0 && <RaceSignup race={race} />}
+      {(race.description || race.registration_url) && (
+        <section className="info-block">
+          {race.is_club_goal && <span className="goal-tag">Objectif club</span>}
+          {race.description && <p>{race.description}</p>}
+          {race.registration_url && <a className="btn btn-dark" href={race.registration_url} target="_blank" rel="noreferrer">S'inscrire sur le site de la course</a>}
+        </section>
+      )}
 
-      {rows.length === 0 ? <Empty>Aucun résultat saisi pour cette course.</Empty> : (
+      {(!isUpcoming(race) || rows.length > 0 || isAdmin) && <div className="table-head">
+        <h2>{rows.length ? `${rows.length} résultat${rows.length > 1 ? 's' : ''}` : 'Résultats'}</h2>
+        {isAdmin && <button className="btn btn-primary" onClick={() => setEditRes({ race_id: id })}><Icon name="plus" size={18} /> Résultat</button>}
+      </div>}
+
+      {rows.length === 0 ? (!isUpcoming(race) && <Empty>Aucun résultat saisi pour cette course.</Empty>) : (
         <div className="table-wrap">
           <table className="results">
             <thead>
@@ -122,7 +191,7 @@ export function RaceDetail({ id }) {
                   <td>
                     <span className="who"><Avatar p={r.p} size={30} /><span>{fullName(r.p)}</span><Medal n={r.podium} /></span>
                   </td>
-                  <td className="c-num strong">{fmtTime(r.time_seconds)}</td>
+                  <td className="c-num strong">{prs.has(r.id) && <span className="pr-tag" title="Record perso battu">RP</span>}{fmtTime(r.time_seconds)}</td>
                   <td className="c-num">{r.rank_overall ? <>{r.rank_overall}{r.finishers && <small>/{r.finishers}</small>}</> : '–'}</td>
                   {race.discipline !== 'triathlon' && <td className="c-num hide-sm">{pace(r.time_seconds, race.distance_km) || '–'}</td>}
                 </tr>
@@ -131,7 +200,12 @@ export function RaceDetail({ id }) {
           </table>
         </div>
       )}
-      {isAdmin && rows.length > 0 && <p className="hint">Touche une ligne pour la modifier.</p>}
+      {isAdmin && rows.length > 0 && (
+        <div className="admin-foot">
+          <p className="hint">Touche une ligne pour la modifier. Quand tout est saisi :</p>
+          <button className="btn btn-ghost" onClick={() => notify('results', race.id)}><Icon name="bell" size={16} /> Prévenir le club : résultats en ligne</button>
+        </div>
+      )}
 
       {editRace && <RaceForm initial={race} onClose={() => setEditRace(false)} onDeleted={() => go('resultats')} />}
       {editRes && <ResultForm initial={editRes} race={race} onClose={() => setEditRes(null)} />}
@@ -139,14 +213,39 @@ export function RaceDetail({ id }) {
   )
 }
 
+function RaceSignup({ race }) {
+  const { registrations, profiles } = useData()
+  const byId = Object.fromEntries(profiles.map((p) => [p.id, p]))
+  const list = (k) => registrations.filter((g) => g.race_id === race.id && g.status === k).map((g) => byId[g.member_id]).filter(Boolean)
+  const going = list('going'), interested = list('interested')
+  return (
+    <section className="signup">
+      <div className="signup-top">
+        <div className="countdown big"><span>J-</span>{daysTo(race.race_date)}</div>
+        <p><strong>{going.length}</strong> adhérent{going.length > 1 ? 's' : ''} au départ{interested.length > 0 && <> · {interested.length} intéressé{interested.length > 1 ? 's' : ''}</>}</p>
+      </div>
+      <RegisterButtons race={race} />
+      {[['Au départ', going], ['Intéressés', interested]].map(([label, l]) => l.length > 0 && (
+        <div key={label} className="who-group">
+          <h3>{label} <small>{l.length}</small></h3>
+          <ul>{l.map((p) => <li key={p.id} onClick={() => go(`membres/${p.id}`)}><Avatar p={p} size={32} /> {fullName(p)}</li>)}</ul>
+        </div>
+      ))}
+    </section>
+  )
+}
+
 function RaceForm({ initial, onClose, onDeleted }) {
-  const { run } = useData()
-  const [f, setF] = useState({ name: '', race_date: new Date().toISOString().slice(0, 10), location: '', discipline: 'running', format: '', distance_km: '', ...initial })
+  const { run, notify } = useData()
+  const [f, setF] = useState({ name: '', race_date: new Date().toISOString().slice(0, 10), location: '', discipline: 'running', format: '', distance_km: '', description: '', registration_url: '', is_club_goal: false, ...initial })
+  const [warn, setWarn] = useState(!initial.id)
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value })
   const submit = async (e) => {
     e.preventDefault()
-    const saved = await run(() => api.saveRace({ ...f, distance_km: Number(String(f.distance_km).replace(',', '.')) }), f.id ? 'Course modifiée' : 'Course créée')
+    const row = { ...f, distance_km: Number(String(f.distance_km).replace(',', '.')), description: f.description || null, registration_url: f.registration_url || null }
+    const saved = await run(() => api.saveRace(row), f.id ? 'Course modifiée' : 'Course créée')
     if (saved) {
+      if (warn && isUpcoming(row)) notify('race_new', saved.id || f.id)
       onClose()
       if (!f.id && saved.id) go(`resultats/${saved.id}`)
     }
@@ -172,9 +271,15 @@ function RaceForm({ initial, onClose, onDeleted }) {
             <input id="r-km" required inputMode="decimal" value={f.distance_km} onChange={set('distance_km')} placeholder="21,1" />
           </Field>
         </div>
+        <Field label="Infos pour les adhérents" hint="Déplacement, hébergement, plan d'entraînement…">
+          <textarea id="r-desc" rows="3" value={f.description || ''} onChange={set('description')} />
+        </Field>
+        <Field label="Lien d'inscription (optionnel)"><input id="r-url" type="url" value={f.registration_url || ''} onChange={set('registration_url')} placeholder="https://…" /></Field>
+        <label className="check"><input id="r-goal" type="checkbox" checked={!!f.is_club_goal} onChange={(e) => setF({ ...f, is_club_goal: e.target.checked })} /> Course objectif club (mise en avant)</label>
+        {isUpcoming(f) && <label className="check"><input id="r-warn" type="checkbox" checked={warn} onChange={(e) => setWarn(e.target.checked)} /> {f.id ? 'Prévenir les adhérents de la modification' : 'Annoncer la course par notification'}</label>}
         <div className="form-actions">
           {f.id && <ConfirmDelete label="Supprimer la course" onConfirm={async () => { if (await run(() => api.deleteRace(f.id), 'Course supprimée')) { onClose(); onDeleted?.() } }} />}
-          <button className="btn btn-primary grow" type="submit">{f.id ? 'Enregistrer' : 'Créer et saisir les résultats'}</button>
+          <button className="btn btn-primary grow" type="submit">{f.id ? 'Enregistrer' : isUpcoming(f) ? 'Créer la course' : 'Créer et saisir les résultats'}</button>
         </div>
       </form>
     </Sheet>

@@ -5,17 +5,18 @@ const Ctx = createContext(null)
 export const useData = () => useContext(Ctx)
 
 export function DataProvider({ children }) {
-  const [state, setState] = useState({ ready: false, me: null, profiles: [], sessions: [], races: [], results: [] })
+  const [state, setState] = useState({ ready: false, me: null, profiles: [], sessions: [], races: [], results: [], attendance: [], registrations: [] })
   const [toast, setToast] = useState(null)
 
   const load = useCallback(async () => {
     try {
       const me = await api.currentUser()
       if (!me) return setState((s) => ({ ...s, ready: true, me: null }))
-      const [profiles, sessions, races, results] = await Promise.all([
+      const [profiles, sessions, races, results, attendance, registrations] = await Promise.all([
         api.listProfiles(), api.listSessions(), api.listRaces(), api.listResults(),
+        api.listAttendance(), api.listRegistrations(),
       ])
-      setState({ ready: true, me, profiles, sessions, races, results })
+      setState({ ready: true, me, profiles, sessions, races, results, attendance, registrations })
     } catch (e) {
       setState((s) => ({ ...s, ready: true }))
       setToast({ text: e.message, error: true })
@@ -46,8 +47,41 @@ export function DataProvider({ children }) {
     }
   }, [load])
 
+  // Réponse instantanée à l'écran, puis enregistrement (on recharge si ça échoue)
+  const optimistic = useCallback(async (key, match, status, save) => {
+    setState((s) => {
+      const rest = s[key].filter((x) => !Object.entries(match).every(([k, v]) => x[k] === v))
+      return { ...s, [key]: status ? [...rest, { ...match, status }] : rest }
+    })
+    try {
+      await save()
+    } catch (e) {
+      setToast({ text: e.message, error: true })
+      load()
+    }
+  }, [load])
+
+  const setAttendance = (session_id, status) =>
+    optimistic('attendance', { session_id, member_id: state.me.id }, status, () => api.setAttendance(session_id, state.me.id, status))
+  const setRegistration = (race_id, status) =>
+    optimistic('registrations', { race_id, member_id: state.me.id }, status, () => api.setRegistration(race_id, state.me.id, status))
+
+  // Envoi d'une notification push (coach) : n'empêche jamais l'action principale
+  const notify = useCallback(async (type, id) => {
+    try {
+      const r = await api.notify(type, id)
+      setToast({ text: r?.demo ? 'Notification envoyée (simulée en démo)' : `Notification envoyée à ${r?.sent ?? 0} appareil${r?.sent > 1 ? 's' : ''}` })
+    } catch (e) {
+      setToast({ text: e.message, error: true })
+    }
+  }, [])
+
   const isAdmin = !!state.me?.is_admin
-  return <Ctx.Provider value={{ ...state, isAdmin, reload: load, run, toast, setToast }}>{children}</Ctx.Provider>
+  return (
+    <Ctx.Provider value={{ ...state, isAdmin, reload: load, run, toast, setToast, setAttendance, setRegistration, notify }}>
+      {children}
+    </Ctx.Provider>
+  )
 }
 
 // Routage minimal par hash : #/resultats/r-001

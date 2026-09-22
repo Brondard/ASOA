@@ -35,11 +35,65 @@ Même commande pour chaque coach. Pour retirer les droits : `is_admin = false`.
 > La clé `anon` peut être publique : la sécurité est assurée par les règles RLS du fichier SQL
 > (lecture réservée aux membres connectés, écriture des séances/courses/résultats réservée aux coachs).
 
+## 2 bis. Passer à la v2 (si tu avais déjà installé la v1)
+
+Dans **SQL Editor**, lance `supabase/upgrade-v2.sql` (présences, inscriptions aux courses, abonnements aux notifications).
+Tes données existantes ne sont pas touchées. Pour une installation neuve, `schema.sql` contient déjà tout.
+
+## 2 ter. Notifications push
+
+Trois morceaux : des clés de chiffrement, la fonction qui envoie, et le rappel quotidien.
+
+**a. Générer les clés VAPID** (une seule fois, sur ton ordinateur) :
+
+```bash
+npx web-push generate-vapid-keys
+```
+
+Garde les deux clés. La **publique** va dans `.env` (et dans Vercel/Netlify) :
+
+```
+VITE_VAPID_PUBLIC_KEY=BExxxx...
+```
+
+**b. Déployer la fonction `notify`** :
+
+```bash
+npx supabase login
+npx supabase link --project-ref <ID-DU-PROJET>
+npx supabase functions deploy notify
+npx supabase secrets set VAPID_PUBLIC_KEY=BExxxx... VAPID_PRIVATE_KEY=xxxx... \
+  VAPID_SUBJECT=mailto:ton@email.fr CRON_SECRET=<un-mot-de-passe-au-hasard> APP_URL=https://ton-site.vercel.app
+```
+
+(L'ID du projet est dans l'URL du tableau de bord : `supabase.com/dashboard/project/<ID>`.)
+
+**c. Rappels automatiques** : Database → Extensions → active `pg_cron` et `pg_net`,
+puis ouvre `supabase/cron-rappels.sql`, remplace les 3 valeurs entre chevrons et lance-le.
+Tous les jours à 18h : rappel aux inscrits des séances du lendemain, alerte aux coachs si le minimum n'est pas atteint,
+rappel J-7 aux inscrits d'une course.
+
+**Tester** : dans l'app, Profil → Notifications → Activer, puis « Tester ».
+
+| Événement | Qui reçoit |
+|---|---|
+| Nouvelle séance publiée (case cochée) | Tout le monde sauf le coach |
+| Séance modifiée (case cochée) | Inscrits « Je viens » / « Peut-être » |
+| Séance annulée | Inscrits « Je viens » / « Peut-être » |
+| Veille de séance, 18h | Inscrits « Je viens » |
+| Minimum non atteint, veille 18h | Coachs |
+| Nouvelle course à venir (case cochée) | Tout le monde |
+| J-7 avant une course | Inscrits « J'y vais » |
+| Bouton « Prévenir le club : résultats en ligne » | Tout le monde |
+
+> **iPhone** : les notifications ne marchent que si l'app a été **ajoutée à l'écran d'accueil** (iOS 16.4 ou plus).
+> L'app l'explique d'elle-même aux adhérents concernés.
+
 ## 3. Mettre en ligne (gratuit)
 
 1. Pousse le dossier sur GitHub (le `.env` est ignoré, c'est voulu).
 2. Sur **Vercel** ou **Netlify** : *Import project* depuis GitHub. Build : `npm run build`, dossier : `dist`.
-3. Ajoute les variables `VITE_SUPABASE_URL` et `VITE_SUPABASE_ANON_KEY` dans les réglages du projet.
+3. Ajoute les variables `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` et `VITE_VAPID_PUBLIC_KEY` dans les réglages du projet.
 4. Chaque `git push` redéploie automatiquement.
 
 Les adhérents ouvrent le lien puis **« Ajouter à l'écran d'accueil »** (Safari : bouton Partager ; Chrome Android : menu ⋮).
@@ -63,6 +117,13 @@ Tout est dans `src/config.js` :
 
 Couleurs et polices : variables en haut de `src/styles.css`.
 
+## Records perso et badges
+
+Calculés automatiquement à partir des résultats, sans saisie en plus.
+
+- **Records perso** : meilleur temps sur 5 km, 10 km, semi et marathon (courses « Course à pied » dont la distance tombe dans la bonne fourchette). Un temps qui bat un record précédent affiche **RP** dans le tableau de la course.
+- **Badges** : liste dans `src/lib/badges.js`. Pour en ajouter un, copie une ligne et change le calcul.
+
 ## Règle du challenge
 
 Chaque course **terminée** rapporte sa distance en km (triathlon = nage + vélo + course, à saisir dans « Distance »).
@@ -71,9 +132,13 @@ Les abandons (DNF) ne comptent pas. Égalité : le nombre de podiums départage,
 ## Structure
 
 ```
-supabase/schema.sql      tables, sécurité, stockage des photos
+supabase/schema.sql      tables, sécurité, stockage des photos (installation complète)
+supabase/upgrade-v2.sql  mise à jour v1 -> v2
+supabase/cron-rappels.sql rappels quotidiens
+supabase/functions/notify/ envoi des notifications push
+src/sw.js                service worker (hors ligne + réception des notifications)
 src/config.js            réglages du club
 src/api/                 supabaseApi (vraie base) / demoApi (données fictives)
 src/screens/             Séances, Résultats, Challenge, Trombi, Profil, Connexion
-src/lib/                 formats de temps/dates, calcul du challenge
+src/lib/                 temps/dates, challenge, records, badges, notifications
 ```

@@ -58,8 +58,10 @@ export const demoApi = {
 
   listSessions: () => wait([...db.sessions].sort((a, b) => a.starts_at.localeCompare(b.starts_at))),
   saveSession: (s) => upsert('sessions', s, 's'),
+  updateSession: (id, patch) => upsert('sessions', { id, ...patch }),
   async deleteSession(id) {
     db.sessions = db.sessions.filter((s) => s.id !== id)
+    db.attendance = db.attendance.filter((a) => a.session_id !== id)
   },
 
   listRaces: () => wait([...db.races].sort((a, b) => b.race_date.localeCompare(a.race_date))),
@@ -67,6 +69,7 @@ export const demoApi = {
   async deleteRace(id) {
     db.races = db.races.filter((r) => r.id !== id)
     db.results = db.results.filter((x) => x.race_id !== id)
+    db.registrations = db.registrations.filter((x) => x.race_id !== id)
   },
 
   listResults: () => wait(db.results),
@@ -77,6 +80,22 @@ export const demoApi = {
   },
   async deleteResult(id) {
     db.results = db.results.filter((x) => x.id !== id)
+  },
+
+  listAttendance: () => wait(db.attendance),
+  async setAttendance(session_id, member_id, status) {
+    db.attendance = db.attendance.filter((a) => !(a.session_id === session_id && a.member_id === member_id))
+    if (status) db.attendance.push({ session_id, member_id, status })
+  },
+  listRegistrations: () => wait(db.registrations),
+  async setRegistration(race_id, member_id, status) {
+    db.registrations = db.registrations.filter((a) => !(a.race_id === race_id && a.member_id === member_id))
+    if (status) db.registrations.push({ race_id, member_id, status })
+  },
+  async savePushSubscription() {},
+  async deletePushSubscription() {},
+  async notify() {
+    return { sent: 0, demo: true }
   },
 
   reset() {
