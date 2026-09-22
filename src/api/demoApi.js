@@ -41,6 +41,7 @@ export const demoApi = {
     currentId = role === 'admin' ? 'm-000' : 'm-001'
     emit()
   },
+  async updatePassword() {},
   async signOut() {
     currentId = null
     emit()

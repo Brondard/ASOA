@@ -89,6 +89,28 @@ rappel J-7 aux inscrits d'une course.
 > **iPhone** : les notifications ne marchent que si l'app a été **ajoutée à l'écran d'accueil** (iOS 16.4 ou plus).
 > L'app l'explique d'elle-même aux adhérents concernés.
 
+## 2 quater. E-mails aux couleurs du club
+
+**⚠️ À faire avant d'ouvrir l'app aux adhérents :** le service d'e-mail fourni par Supabase n'envoie qu'aux membres
+de ton équipe Supabase, 2 e-mails par heure maximum. Et sur un projet gratuit créé après le 3 juin 2026,
+les modèles ne sont modifiables qu'avec ton propre service d'envoi. Pour 100 à 200 adhérents, branche ton propre service d'envoi :
+Authentication → **Emails → SMTP Settings**. [Brevo](https://www.brevo.com) (français, 300 e-mails/jour gratuits) ou
+[Resend](https://resend.com) conviennent très bien. Mets « ASOA Antibes » comme nom d'expéditeur.
+
+Puis, Authentication → **Emails → Templates**, pour chaque modèle : colle le sujet et le contenu du fichier correspondant.
+
+| Modèle Supabase | Fichier | Sujet |
+|---|---|---|
+| Confirm signup | `supabase/emails/confirmation.html` | Bienvenue à l'ASOA : confirme ton adresse |
+| Invite user | `supabase/emails/invite.html` | Tu es invité(e) sur l'app de l'ASOA |
+| Reset password | `supabase/emails/reset-password.html` | ASOA : réinitialise ton mot de passe |
+| Change email address | `supabase/emails/change-email.html` | ASOA : confirme ta nouvelle adresse |
+
+Pour modifier les textes : édite `supabase/emails/build.py` puis `python3 supabase/emails/build.py`.
+
+**Inviter des adhérents** (plutôt que d'attendre qu'ils s'inscrivent) : Authentication → Users → *Invite user*.
+Ils reçoivent l'e-mail d'invitation, cliquent, et l'app leur demande de choisir un mot de passe.
+
 ## 3. Mettre en ligne (gratuit)
 
 1. Pousse le dossier sur GitHub (le `.env` est ignoré, c'est voulu).
@@ -117,6 +139,12 @@ Tout est dans `src/config.js` :
 
 Couleurs et polices : variables en haut de `src/styles.css`.
 
+## Saisie des temps après une course
+
+Dès le jour de la course, le coach voit sur la page de la course un encadré « X inscrits sans résultat ».
+Le bouton **« Saisir les temps des inscrits »** ouvre une ligne par inscrit (« J'y vais » cochés Classé, « Intéressé » cochés Pas couru) :
+on tape les temps, on marque les abandons, et tout s'enregistre d'un coup. « Pas couru » retire l'inscription.
+
 ## Records perso et badges
 
 Calculés automatiquement à partir des résultats, sans saisie en plus.
@@ -136,6 +164,7 @@ supabase/schema.sql      tables, sécurité, stockage des photos (installation c
 supabase/upgrade-v2.sql  mise à jour v1 -> v2
 supabase/cron-rappels.sql rappels quotidiens
 supabase/functions/notify/ envoi des notifications push
+supabase/emails/          modèles d'e-mails (confirmation, invitation, mot de passe…)
 src/sw.js                service worker (hors ligne + réception des notifications)
 src/config.js            réglages du club
 src/api/                 supabaseApi (vraie base) / demoApi (données fictives)

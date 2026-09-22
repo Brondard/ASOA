@@ -439,3 +439,19 @@ table.results { width: 100%; border-collapse: collapse; font-size: 15px; }
   .badges { grid-template-columns: repeat(2, 1fr); }
   .rsvp button { font-size: 14px; }
 }
+
+/* ---------- Saisie groupée des temps ---------- */
+.bulk-callout { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 14px; border-radius: 8px; background: var(--red-soft); border: 1px solid var(--red); }
+.bulk-callout > div { flex: 1; min-width: 200px; }
+.bulk-callout p { margin: 2px 0 0; font-size: 14px; color: var(--ink-2); }
+.bulk-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.bulk-list li { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; }
+.bulk-list li.is-absent { opacity: 0.6; }
+.bulk-who { display: flex; align-items: center; gap: 10px; }
+.bulk-who span { display: flex; flex-direction: column; }
+.bulk-who small { color: var(--muted); font-size: 13px; }
+.bulk-fields { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 8px; }
+.bulk-fields label { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.bulk-fields span { font: 700 12px/1 var(--display); text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+.form .bulk-fields input, .form .bulk-fields select { padding: 8px; }
+.form input[aria-invalid='true'] { border-color: var(--red); }

@@ -7,6 +7,8 @@ export const useData = () => useContext(Ctx)
 export function DataProvider({ children }) {
   const [state, setState] = useState({ ready: false, me: null, profiles: [], sessions: [], races: [], results: [], attendance: [], registrations: [] })
   const [toast, setToast] = useState(null)
+  // Arrivée depuis le lien « mot de passe oublié » : on demande le nouveau mot de passe
+  const [recovery, setRecovery] = useState(() => /type=(recovery|invite)/.test(window.location.hash))
 
   const load = useCallback(async () => {
     try {
@@ -25,7 +27,10 @@ export function DataProvider({ children }) {
 
   useEffect(() => {
     load()
-    return api.onAuthChange(load)
+    return api.onAuthChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') setRecovery(true)
+      load()
+    })
   }, [load])
 
   useEffect(() => {
@@ -78,7 +83,7 @@ export function DataProvider({ children }) {
 
   const isAdmin = !!state.me?.is_admin
   return (
-    <Ctx.Provider value={{ ...state, isAdmin, reload: load, run, toast, setToast, setAttendance, setRegistration, notify }}>
+    <Ctx.Provider value={{ ...state, isAdmin, reload: load, run, toast, setToast, setAttendance, setRegistration, notify, recovery, setRecovery }}>
       {children}
     </Ctx.Provider>
   )

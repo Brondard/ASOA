@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light only">
+<title>Confirme ton adresse</title>
+</head>
+<body style="margin:0;padding:0;background:#f5f2f1;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">Un clic pour activer ton compte et rejoindre le club dans l'app.</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f5f2f1;">
+<tr><td align="center" style="padding:32px 16px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:520px;">
+
+    <!-- En-tête noir + logo -->
+    <tr><td style="background:#141112;border-radius:10px 10px 0 0;padding:28px 32px 24px;border-bottom:4px solid #d0152b;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+        <td style="background:#d0152b;padding:6px 14px 5px;font-family:'Arial Black',Arial,Helvetica,sans-serif;font-size:26px;font-weight:900;font-style:italic;letter-spacing:1px;color:#ffffff;line-height:1;">ASOA</td>
+        <td style="padding-left:12px;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;letter-spacing:4px;text-transform:uppercase;color:#bdb4b5;">Antibes</td>
+      </tr></table>
+    </td></tr>
+
+    <!-- Contenu -->
+    <tr><td style="background:#ffffff;padding:36px 32px 12px;font-family:Arial,Helvetica,sans-serif;color:#161213;">
+      <p style="margin:0 0 6px;font-size:12px;font-weight:bold;letter-spacing:3px;text-transform:uppercase;color:#d0152b;">Bienvenue au club</p>
+      <h1 style="margin:0 0 18px;font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:30px;line-height:1.1;font-weight:bold;text-transform:uppercase;color:#161213;">Plus qu'un clic avant le départ</h1>
+      <p style="margin:0 0 14px;font-size:16px;line-height:1.55;color:#3b3435;">Salut{{ if .Data.first_name }} {{ .Data.first_name }}{{ end }},</p>
+      <p style="margin:0 0 14px;font-size:16px;line-height:1.55;color:#3b3435;">Ton compte sur l'app de l'ASOA est presque prêt. Confirme ton adresse e-mail pour retrouver :</p>
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 8px;">
+        <tr><td style="padding:4px 10px 4px 0;font-size:16px;color:#d0152b;font-weight:bold;">›</td><td style="padding:4px 0;font-size:15px;color:#3b3435;">les séances de la semaine, et dire si tu viens</td></tr>
+        <tr><td style="padding:4px 10px 4px 0;font-size:16px;color:#d0152b;font-weight:bold;">›</td><td style="padding:4px 0;font-size:15px;color:#3b3435;">les courses du club et les résultats de tout le monde</td></tr>
+        <tr><td style="padding:4px 10px 4px 0;font-size:16px;color:#d0152b;font-weight:bold;">›</td><td style="padding:4px 0;font-size:15px;color:#3b3435;">tes records, tes badges et le challenge kilométrique</td></tr>
+      </table>
+    </td></tr>
+
+    <!-- Bouton -->
+    <tr><td style="background:#ffffff;padding:16px 32px 8px;" align="left">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+        <td style="background:#d0152b;border-radius:6px;">
+          <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:15px 30px;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:bold;color:#ffffff;text-decoration:none;letter-spacing:0.5px;">Confirmer mon adresse</a>
+        </td>
+      </tr></table>
+    </td></tr>
+
+    <!-- Lien de secours -->
+    <tr><td style="background:#ffffff;padding:20px 32px 32px;border-radius:0 0 10px 10px;font-family:Arial,Helvetica,sans-serif;">
+      <p style="margin:0 0 6px;font-size:13px;color:#736a6b;">Le bouton ne marche pas ? Copie ce lien dans ton navigateur :</p>
+      <p style="margin:0;font-size:12px;line-height:1.4;word-break:break-all;"><a href="{{ .ConfirmationURL }}" style="color:#d0152b;">{{ .ConfirmationURL }}</a></p>
+      <p style="margin:22px 0 0;padding-top:18px;border-top:1px solid #e7e0df;font-size:13px;line-height:1.5;color:#736a6b;">Tu n'as pas créé de compte ? Ignore simplement cet e-mail, rien ne sera activé.</p>
+    </td></tr>
+
+    <tr><td align="center" style="padding:20px 16px 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.5;color:#9a9091;">
+      ASOA Antibes · Course à pied · Trail · Triathlon
+    </td></tr>
+  </table>
+</td></tr>
+</table>
+</body>
+</html>

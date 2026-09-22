@@ -1,6 +1,6 @@
 import { api } from './api/index.js'
 import Challenge from './screens/Challenge.jsx'
-import Login from './screens/Login.jsx'
+import Login, { NewPassword } from './screens/Login.jsx'
 import Members, { MemberDetail } from './screens/Members.jsx'
 import Races, { RaceDetail } from './screens/Races.jsx'
 import Sessions from './screens/Sessions.jsx'
@@ -16,10 +16,11 @@ const TABS = [
 ]
 
 export default function App() {
-  const { ready, me, isAdmin, toast } = useData()
+  const { ready, me, isAdmin, toast, recovery } = useData()
   const [page, sub] = useRoute()
 
   if (!ready) return <div className="splash"><Logo big /></div>
+  if (me && recovery) return <><NewPassword />{toast && <div className={`toast ${toast.error ? 'err' : ''}`}>{toast.text}</div>}</>
   if (!me) return <><Login />{toast && <div className={`toast ${toast.error ? 'err' : ''}`}>{toast.text}</div>}</>
 
   let screen

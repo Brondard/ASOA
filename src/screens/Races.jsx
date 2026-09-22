@@ -141,6 +141,7 @@ export function RaceDetail({ id }) {
   const { races, results, profiles, isAdmin, me, registrations, notify } = useData()
   const [editRace, setEditRace] = useState(false)
   const [editRes, setEditRes] = useState(null)
+  const [bulk, setBulk] = useState(false)
   const race = races.find((r) => r.id === id)
   const rows = useMemo(() => {
     const byId = Object.fromEntries(profiles.map((p) => [p.id, p]))
@@ -151,6 +152,13 @@ export function RaceDetail({ id }) {
   }, [results, profiles, id])
 
   const prs = useMemo(() => recordBreakers(results, races), [results, races])
+  // Inscrits (J'y vais / Intéressé) qui n'ont pas encore de résultat
+  const pending = useMemo(() => {
+    const done = new Set(results.filter((r) => r.race_id === id).map((r) => r.member_id))
+    return registrations
+      .filter((g) => g.race_id === id && !done.has(g.member_id))
+      .sort((a, b) => (a.status === 'going' ? 0 : 1) - (b.status === 'going' ? 0 : 1))
+  }, [registrations, results, id])
   if (!race) return <><PageHead back title="Course introuvable" /><Empty>Cette course a peut-être été supprimée.</Empty></>
 
   return (
@@ -170,6 +178,16 @@ export function RaceDetail({ id }) {
           {race.is_club_goal && <span className="goal-tag">Objectif club</span>}
           {race.description && <p>{race.description}</p>}
           {race.registration_url && <a className="btn btn-dark" href={race.registration_url} target="_blank" rel="noreferrer">S'inscrire sur le site de la course</a>}
+        </section>
+      )}
+
+      {isAdmin && race.race_date <= todayISO() && pending.some((g) => g.status === 'going') && (
+        <section className="bulk-callout">
+          <div>
+            <strong>{pending.filter((g) => g.status === 'going').length} inscrit{pending.filter((g) => g.status === 'going').length > 1 ? 's' : ''} sans résultat</strong>
+            <p>Saisis tous leurs temps d'un coup{pending.some((g) => g.status === 'interested') ? ' (les « Intéressés » sont aussi dans la liste)' : ''}.</p>
+          </div>
+          <button className="btn btn-primary" onClick={() => setBulk(true)}>Saisir les temps des inscrits</button>
         </section>
       )}
 
@@ -209,7 +227,107 @@ export function RaceDetail({ id }) {
 
       {editRace && <RaceForm initial={race} onClose={() => setEditRace(false)} onDeleted={() => go('resultats')} />}
       {editRes && <ResultForm initial={editRes} race={race} onClose={() => setEditRes(null)} />}
+      {bulk && <BulkResults race={race} pending={pending} onClose={() => setBulk(false)} />}
     </>
+  )
+}
+
+// Saisie groupée : une ligne par inscrit, on remplit et on enregistre tout d'un coup
+const BULK_STATUS = [['ok', 'Classé'], ['dnf', 'Abandon'], ['absent', 'Pas couru']]
+
+function BulkResults({ race, pending, onClose }) {
+  const { profiles, results, run, notify } = useData()
+  const byId = Object.fromEntries(profiles.map((p) => [p.id, p]))
+  const knownFinishers = results.find((r) => r.race_id === race.id && r.finishers)?.finishers
+  const [finishers, setFinishers] = useState(knownFinishers || '')
+  const [rows, setRows] = useState(() => pending.map((g) => ({
+    member_id: g.member_id, reg: g.status, status: g.status === 'going' ? 'ok' : 'absent', time: '', rank: '', podium: '',
+  })))
+  const [errors, setErrors] = useState({})
+  const [warn, setWarn] = useState(true)
+  const set = (i, patch) => setRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)))
+
+  const submit = async (e) => {
+    e.preventDefault()
+    const errs = {}
+    const toSave = []
+    const noShow = [] // inscrits « J'y vais » qui n'ont finalement pas couru
+    rows.forEach((r, i) => {
+      if (r.status === 'absent') {
+        if (r.reg === 'going') noShow.push(r.member_id)
+        return
+      }
+      const secs = r.status === 'dnf' ? null : parseTime(r.time)
+      if (r.status === 'ok' && !secs) errs[i] = r.time ? 'Format : 1:23:45 ou 45:30' : 'Temps manquant'
+      toSave.push({
+        race_id: race.id, member_id: r.member_id, time_seconds: secs,
+        rank_overall: r.status === 'ok' && r.rank ? Number(r.rank) : null,
+        finishers: finishers ? Number(finishers) : null,
+        podium: r.status === 'ok' && r.podium ? Number(r.podium) : null,
+        note: null,
+      })
+    })
+    setErrors(errs)
+    if (Object.keys(errs).length) return
+    if (!toSave.length && !noShow.length) return onClose()
+    const ok = await run(async () => {
+      for (const row of toSave) await api.saveResult(row)
+      for (const m of noShow) await api.setRegistration(race.id, m, null)
+    }, toSave.length ? `${toSave.length} résultat${toSave.length > 1 ? 's' : ''} enregistré${toSave.length > 1 ? 's' : ''}` : 'Inscriptions mises à jour')
+    if (ok) {
+      if (warn && toSave.length) notify('results', race.id)
+      onClose()
+    }
+  }
+
+  const nb = rows.filter((r) => r.status !== 'absent').length
+  return (
+    <Sheet title={`Temps des inscrits · ${race.name}`} onClose={onClose}>
+      <form className="form" onSubmit={submit}>
+        <Field label="Nombre de classés (optionnel)" hint="Commun à tous : sert à afficher « 123/1450 ».">
+          <input id="b-fin" type="number" min="1" value={finishers} onChange={(e) => setFinishers(e.target.value)} />
+        </Field>
+        <ul className="bulk-list">
+          {rows.map((r, i) => {
+            const p = byId[r.member_id]
+            return (
+              <li key={r.member_id} className={r.status === 'absent' ? 'is-absent' : ''}>
+                <div className="bulk-who">
+                  <Avatar p={p} size={32} />
+                  <span><strong>{fullName(p)}</strong><small>{r.reg === 'going' ? "Inscrit « J'y vais »" : 'Intéressé'}</small></span>
+                </div>
+                <div className="segmented small" role="group" aria-label={`Statut de ${fullName(p)}`}>
+                  {BULK_STATUS.map(([k, l]) => (
+                    <button type="button" key={k} className={r.status === k ? 'on' : ''} onClick={() => set(i, { status: k })}>{l}</button>
+                  ))}
+                </div>
+                {r.status === 'ok' && (
+                  <div className="bulk-fields">
+                    <label><span>Temps</span>
+                      <input id={`b-time-${i}`} inputMode="numeric" placeholder="1:42:18" value={r.time} onChange={(e) => set(i, { time: e.target.value })} aria-invalid={!!errors[i]} />
+                    </label>
+                    <label><span>Scratch</span>
+                      <input id={`b-rank-${i}`} type="number" min="1" value={r.rank} onChange={(e) => set(i, { rank: e.target.value })} />
+                    </label>
+                    <label><span>Podium</span>
+                      <select id={`b-pod-${i}`} value={r.podium} onChange={(e) => set(i, { podium: e.target.value })}>
+                        <option value="">—</option><option value="1">1er</option><option value="2">2e</option><option value="3">3e</option>
+                      </select>
+                    </label>
+                  </div>
+                )}
+                {errors[i] && <p className="form-error">{errors[i]}</p>}
+              </li>
+            )
+          })}
+        </ul>
+        <p className="hint">« Pas couru » retire l'inscription. Quelqu'un a couru sans s'inscrire ? Ajoute-le ensuite avec le bouton « + Résultat ».</p>
+        <label className="check"><input id="b-warn" type="checkbox" checked={warn} onChange={(e) => setWarn(e.target.checked)} /> Prévenir le club : résultats en ligne</label>
+        <div className="form-actions">
+          <button className="btn btn-primary grow" type="submit">{nb ? `Enregistrer ${nb} résultat${nb > 1 ? 's' : ''}` : 'Enregistrer'}</button>
+        </div>
+      </form>
+    </Sheet>
   )
 }
 

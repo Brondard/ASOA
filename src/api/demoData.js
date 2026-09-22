@@ -99,6 +99,17 @@ export function buildDemo() {
     })
   })
 
+  // Course terminée il y a 2 jours : inscrits mais temps pas encore saisis (démo de la saisie groupée)
+  const past = new Date()
+  past.setDate(past.getDate() - 2)
+  const recent = {
+    id: 'f-900', name: 'Trail du Baou', race_date: past.toLocaleDateString('sv-SE'), location: 'Saint-Jeannet',
+    discipline: 'trail', format: '16 km · 800 D+', distance_km: 16, is_club_goal: false, description: null, registration_url: null,
+  }
+  races.push(recent)
+  ;['m-000', 'm-001', 'm-004', 'm-009', 'm-013', 'm-017', 'm-021'].forEach((m, j) =>
+    registrations.push({ race_id: recent.id, member_id: m, status: j === 6 ? 'interested' : 'going' }))
+
   // --- Séances des 3 prochaines semaines ---------------------------------
   const PLAN = [
     { dow: 2, h: 18, m: 30, discipline: 'running', place: 0, title: 'Fractionné piste', dur: 90,

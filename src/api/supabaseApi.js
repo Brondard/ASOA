@@ -49,7 +49,7 @@ export const supabaseApi = {
     return ok(await sb().from('profiles').select('*').eq('id', uid).single())
   },
   onAuthChange(cb) {
-    const { data } = sb().auth.onAuthStateChange(() => cb())
+    const { data } = sb().auth.onAuthStateChange((event) => cb(event))
     return () => data.subscription.unsubscribe()
   },
   async signIn(email, password) {
@@ -64,6 +64,9 @@ export const supabaseApi = {
   },
   async resetPassword(email) {
     ok(await sb().auth.resetPasswordForEmail(email, { redirectTo: window.location.origin }))
+  },
+  async updatePassword(password) {
+    ok(await sb().auth.updateUser({ password }))
   },
   async signOut() {
     await sb().auth.signOut()

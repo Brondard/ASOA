@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { api } from '../api/index.js'
 import { CLUB } from '../config.js'
+import { useData } from '../store.jsx'
 import { Field, Logo } from '../ui.jsx'
 
 export default function Login() {
@@ -71,6 +72,45 @@ export default function Login() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// Écran affiché après un clic sur le lien « mot de passe oublié »
+export function NewPassword() {
+  const { setRecovery, setToast } = useData()
+  const [pw, setPw] = useState('')
+  const [pw2, setPw2] = useState('')
+  const [err, setErr] = useState('')
+  const [busy, setBusy] = useState(false)
+  const submit = async (e) => {
+    e.preventDefault()
+    if (pw !== pw2) return setErr('Les deux mots de passe ne sont pas identiques.')
+    setBusy(true)
+    try {
+      await api.updatePassword(pw)
+      setToast({ text: 'Mot de passe mis à jour' })
+      history.replaceState(null, '', window.location.pathname + '#/seances')
+      setRecovery(false)
+    } catch (e2) {
+      setErr(e2.message)
+    }
+    setBusy(false)
+  }
+  return (
+    <div className="login">
+      <div className="login-hero"><Logo big /><p>Nouveau mot de passe</p></div>
+      <form className="form login-card" onSubmit={submit}>
+        <h1>Choisis ton mot de passe</h1>
+        <Field label="Nouveau mot de passe" hint="6 caractères minimum">
+          <input id="np-1" type="password" required minLength={6} value={pw} onChange={(e) => setPw(e.target.value)} autoComplete="new-password" />
+        </Field>
+        <Field label="Confirme-le">
+          <input id="np-2" type="password" required minLength={6} value={pw2} onChange={(e) => setPw2(e.target.value)} autoComplete="new-password" />
+        </Field>
+        {err && <p className="form-error">{err}</p>}
+        <button className="btn btn-primary" type="submit" disabled={busy}>{busy ? '…' : 'Enregistrer et entrer'}</button>
+      </form>
     </div>
   )
 }
