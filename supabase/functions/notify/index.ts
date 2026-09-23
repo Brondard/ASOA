@@ -88,7 +88,7 @@ async function daily() {
   const { data: races } = await db.from('races').select('*').eq('race_date', in7)
   for (const r of races || []) {
     const going = ((await db.from('race_registrations').select('member_id').eq('race_id', r.id).eq('status', 'going')).data || []).map((x) => x.member_id)
-    sent += await send(going, { title: `J-7 : ${r.name}`, body: `Plus qu'une semaine ! ${going.length} ASOA au départ.`, url: link(`resultats/${r.id}`) })
+    sent += await send(going, { title: `J-7 : ${r.name}`, body: `Plus qu'une semaine ! ${going.length} ASOA au départ.`, url: link(`courses/${r.id}`) })
   }
   return sent
 }
@@ -135,15 +135,17 @@ Deno.serve(async (req) => {
     } else if (type === 'race_new') {
       const { data: r } = await db.from('races').select('*').eq('id', id).single()
       if (!r) return json({ error: 'course introuvable' }, 404)
+      const { data: fmts } = await db.from('races').select('format').eq('parent_id', r.id)
+      const formatList = (fmts || []).map((x: any) => x.format).filter(Boolean).join(', ')
       sent = await send('all', {
         title: r.is_club_goal ? `🎯 Objectif club : ${r.name}` : `Nouvelle course : ${r.name}`,
-        body: `${fmt(r.race_date, { day: 'numeric', month: 'long', year: 'numeric' })}${r.location ? ` · ${r.location}` : ''}. Tu en es ?`,
-        url: link(`resultats/${r.id}`),
+        body: `${fmt(r.race_date, { day: 'numeric', month: 'long', year: 'numeric' })}${r.location ? ` · ${r.location}` : ''}.${formatList ? ` Formats : ${formatList}.` : ''} Tu en es ?`,
+        url: link(`courses/${r.id}`),
       }, user.id)
     } else if (type === 'results') {
       const { data: r } = await db.from('races').select('*').eq('id', id).single()
       if (!r) return json({ error: 'course introuvable' }, 404)
-      sent = await send('all', { title: `Résultats en ligne · ${r.name}`, body: 'Découvre les temps des ASOA et les records battus.', url: link(`resultats/${r.id}`) }, user.id)
+      sent = await send('all', { title: `Résultats en ligne · ${r.name}`, body: 'Découvre les temps des ASOA et les records battus.', url: link(`courses/${r.id}`) }, user.id)
     } else {
       return json({ error: 'type inconnu' }, 400)
     }

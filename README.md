@@ -40,6 +40,11 @@ Même commande pour chaque coach. Pour retirer les droits : `is_admin = false`.
 Dans **SQL Editor**, lance `supabase/upgrade-v2.sql` (présences, inscriptions aux courses, abonnements aux notifications).
 Tes données existantes ne sont pas touchées. Pour une installation neuve, `schema.sql` contient déjà tout.
 
+## 2 bis 2. Passer à la v3 (formats multiples)
+
+Dans **SQL Editor**, lance `supabase/upgrade-v3.sql`. Il ajoute la colonne qui relie les formats
+(10 km, semi, marathon…) à leur épreuve. Les courses existantes ne bougent pas.
+
 ## 2 ter. Notifications push
 
 Trois morceaux : des clés de chiffrement, la fonction qui envoie, et le rappel quotidien.
@@ -139,6 +144,17 @@ Tout est dans `src/config.js` :
 
 Couleurs et polices : variables en haut de `src/styles.css`.
 
+## Une épreuve, plusieurs formats
+
+Une course comme le marathon de Bologne propose souvent un 10 km, un semi, un 30 km et le marathon.
+Dans le formulaire du coach, le bouton **« Ajouter un format »** crée autant de lignes que nécessaire :
+une seule fiche côté adhérents, avec un menu déroulant pour choisir son format et dire « J'y vais » ou « Intéressé ».
+
+- Chaque format garde sa propre distance, donc ses propres km pour le challenge, ses propres résultats et son propre record.
+- Un adhérent n'est inscrit que sur un format à la fois ; changer de format déplace son inscription.
+- Une course déjà créée peut être transformée en épreuve à formats : ses inscrits et ses résultats sont repris par le premier format.
+- Un format qui a déjà des résultats ne peut pas être retiré tant qu'on ne les a pas supprimés.
+
 ## Saisie des temps après une course
 
 Dès le jour de la course, le coach voit sur la page de la course un encadré « X inscrits sans résultat ».
@@ -162,12 +178,13 @@ Les abandons (DNF) ne comptent pas. Égalité : le nombre de podiums départage,
 ```
 supabase/schema.sql      tables, sécurité, stockage des photos (installation complète)
 supabase/upgrade-v2.sql  mise à jour v1 -> v2
+supabase/upgrade-v3.sql  mise à jour v2 -> v3 (formats multiples)
 supabase/cron-rappels.sql rappels quotidiens
 supabase/functions/notify/ envoi des notifications push
 supabase/emails/          modèles d'e-mails (confirmation, invitation, mot de passe…)
 src/sw.js                service worker (hors ligne + réception des notifications)
 src/config.js            réglages du club
 src/api/                 supabaseApi (vraie base) / demoApi (données fictives)
-src/screens/             Séances, Résultats, Challenge, Trombi, Profil, Connexion
-src/lib/                 temps/dates, challenge, records, badges, notifications
+src/screens/             Séances, Courses, Challenge, Trombi, Profil, Connexion
+src/lib/                 temps/dates, challenge, épreuves/formats, records, badges, notifications
 ```

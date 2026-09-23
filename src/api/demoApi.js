@@ -73,6 +73,11 @@ export const demoApi = {
     db.registrations = db.registrations.filter((x) => x.race_id !== id)
   },
 
+  async moveRaceContent(fromId, toId) {
+    db.results = db.results.map((r) => (r.race_id === fromId ? { ...r, race_id: toId } : r))
+    db.registrations = db.registrations.map((r) => (r.race_id === fromId ? { ...r, race_id: toId } : r))
+  },
+
   listResults: () => wait(db.results),
   async saveResult(r) {
     const dup = db.results.find((x) => x.race_id === r.race_id && x.member_id === r.member_id && x.id !== r.id)

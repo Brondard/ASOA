@@ -9,7 +9,7 @@ import { Avatar, Icon, Logo } from './ui.jsx'
 
 const TABS = [
   ['seances', 'Séances', 'calendar'],
-  ['resultats', 'Résultats', 'medal'],
+  ['courses', 'Courses', 'medal'],
   ['challenge', 'Challenge', 'trophy'],
   ['membres', 'Trombi', 'users'],
   ['profil', 'Profil', 'user'],
@@ -24,8 +24,8 @@ export default function App() {
   if (!me) return <><Login />{toast && <div className={`toast ${toast.error ? 'err' : ''}`}>{toast.text}</div>}</>
 
   let screen
-  if (page === 'resultats' && sub) screen = <RaceDetail id={sub} />
-  else if (page === 'resultats') screen = <Races />
+  if ((page === 'courses' || page === 'resultats') && sub) screen = <RaceDetail id={sub} />
+  else if (page === 'courses' || page === 'resultats') screen = <Races />
   else if (page === 'challenge') screen = <Challenge />
   else if (page === 'membres' && sub) screen = <MemberDetail id={sub} />
   else if (page === 'membres') screen = <Members />
@@ -47,7 +47,7 @@ export default function App() {
 
       <nav className="tabbar" aria-label="Navigation principale">
         {TABS.map(([key, label, icon]) => (
-          <a key={key} href={`#/${key}`} className={page === key || (!page && key === 'seances') ? 'on' : ''} aria-current={page === key ? 'page' : undefined}>
+          <a key={key} href={`#/${key}`} className={page === key || (key === 'courses' && page === 'resultats') ? 'on' : ''} aria-current={page === key ? 'page' : undefined}>
             <Icon name={icon} size={22} />
             <span>{label}</span>
           </a>

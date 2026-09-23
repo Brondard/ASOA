@@ -89,6 +89,11 @@ export const supabaseApi = {
   listRaces: async () => ok(await sb().from('races').select('*').order('race_date', { ascending: false })),
   saveRace: async (r) => ok(await sb().from('races').upsert(clean(r)).select().single()),
   deleteRace: async (id) => ok(await sb().from('races').delete().eq('id', id)),
+  // Rattache résultats et inscriptions d'une course à une autre (conversion en épreuve à formats)
+  async moveRaceContent(fromId, toId) {
+    ok(await sb().from('results').update({ race_id: toId }).eq('race_id', fromId))
+    ok(await sb().from('race_registrations').update({ race_id: toId }).eq('race_id', fromId))
+  },
 
   listResults: () => fetchAll(() => sb().from('results').select('*').order('id')),
   saveResult: async (r) => ok(await sb().from('results').upsert(clean(r)).select().single()),

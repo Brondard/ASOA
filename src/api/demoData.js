@@ -80,8 +80,6 @@ export function buildDemo() {
 
   // --- Courses à venir + inscriptions -------------------------------------
   const upcoming = [
-    ['Marathon de Bologne', '2027-03-07', 'Bologne (Italie)', 'running', 'Marathon', 42.2, true,
-      'Objectif club de la saison ! On vise 25 coureurs ASOA au départ.\nDéplacement en minibus le samedi matin, hébergement groupé réservé par le club (2 nuits). Plan d\'entraînement marathon de 16 semaines à partir de novembre.'],
     ['Trail des Balcons d\'Azur', '2027-03-21', 'Mandelieu', 'trail', '28 km · 1300 D+', 28, false, null],
     ['Triathlon de Cannes', '2027-04-11', 'Cannes', 'triathlon', 'Distance M', 51.5, false, null],
     ['Semi-marathon de Nice', '2027-04-25', 'Nice', 'running', 'Semi-marathon', 21.1, false, null],
@@ -89,8 +87,29 @@ export function buildDemo() {
     id: uid('f', i), name, race_date, location, discipline, format, distance_km, is_club_goal, description,
     registration_url: is_club_goal ? 'https://www.example.org/inscription' : null,
   }))
-  races.push(...upcoming)
+  // Épreuve à plusieurs formats : une ligne « épreuve » + une ligne par format
+  const bologne = {
+    id: 'e-000', name: 'Marathon de Bologne', race_date: '2027-03-07', location: 'Bologne (Italie)', discipline: 'running',
+    format: null, distance_km: 0, parent_id: null, is_club_goal: true,
+    registration_url: 'https://www.example.org/inscription',
+    description: 'Objectif club de la saison ! On vise 25 coureurs ASOA au départ, tous formats confondus.\nDéplacement en minibus le samedi matin, hébergement groupé réservé par le club (2 nuits). Plan d\'entraînement de 16 semaines à partir de novembre.',
+  }
+  const bologneFormats = [['Marathon', 42.2], ['30 km', 30], ['Semi-marathon', 21.1], ['10 km', 10]].map(([format, distance_km], i) => ({
+    id: `e-00${i + 1}`, name: bologne.name, race_date: bologne.race_date, location: bologne.location, discipline: 'running',
+    format, distance_km, parent_id: bologne.id, is_club_goal: true, description: null, registration_url: null,
+  }))
+  races.push(bologne, ...bologneFormats, ...upcoming)
   const registrations = []
+  // Inscriptions réparties sur les 4 formats de Bologne
+  const pool = [...profiles].sort(() => rnd() - 0.5)
+  let pi = 0
+  bologneFormats.forEach((fm, i) => {
+    const n = [6, 3, 7, 4][i]
+    for (let k = 0; k < n && pi < pool.length; k++, pi++) {
+      registrations.push({ race_id: fm.id, member_id: pool[pi].id, status: k === n - 1 && i % 2 ? 'interested' : 'going' })
+    }
+  })
+  if (!registrations.some((r) => r.member_id === 'm-001')) registrations.push({ race_id: bologneFormats[2].id, member_id: 'm-001', status: 'going' })
   upcoming.forEach((r, i) => {
     const n = r.is_club_goal ? 17 : 3 + i * 2
     ;[...profiles].sort(() => rnd() - 0.5).slice(0, n).forEach((p, j) => {

@@ -94,7 +94,7 @@ export function MemberDetail({ id, self }) {
         {RECORD_DISTANCES.map((d) => {
           const r = data.records[d.key]
           return (
-            <div key={d.key} className={r ? '' : 'empty-rec'} onClick={() => r && go(`resultats/${r.race_id}`)}>
+            <div key={d.key} className={r ? '' : 'empty-rec'} onClick={() => r && go(`courses/${r.race_id}`)}>
               <dt>{d.label}</dt>
               <dd>{r ? fmtTime(r.time_seconds) : '—'}</dd>
               {r && <small>{r.race.name} · {new Date(r.race.race_date).getFullYear()}</small>}
@@ -125,7 +125,7 @@ export function MemberDetail({ id, self }) {
         <ul className="race-list">
           {data.mine.map((r) => (
             <li key={r.id}>
-              <button className="race-row" onClick={() => go(`resultats/${r.race_id}`)}>
+              <button className="race-row" onClick={() => go(`courses/${r.race_id}`)}>
                 <span className="race-date">{fullDate(r.race.race_date)}</span>
                 <span className="race-name">{r.race.name}</span>
                 <span className="race-meta"><DiscChip d={r.race.discipline} /> {r.race.format || `${km(r.race.distance_km)} km`}</span>

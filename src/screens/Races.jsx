@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { api } from '../api/index.js'
 import { DISCIPLINES } from '../config.js'
 import { fmtTime, fullDate, fullName, km, maskTime, pace, parseTime, seasonOf } from '../lib/format.js'
+import { eventOf, formatsOf, isEvent, labelOf, leafRaces, legsOf, topRaces } from '../lib/events.js'
 import { recordBreakers } from '../lib/records.js'
 import { go, useData } from '../store.jsx'
 import { Avatar, ConfirmDelete, DiscChip, Empty, Field, Icon, PageHead, Sheet } from '../ui.jsx'
@@ -17,6 +18,9 @@ export default function Races() {
   const [mine, setMine] = useState(false)
   const [editing, setEditing] = useState(null)
 
+  const hasResults = (r) => results.some((x) => x.race_id === r.id)
+
+  // Passé / avec résultats : une ligne par format
   const bySeason = useMemo(() => {
     const count = {}
     const myRes = {}
@@ -25,8 +29,8 @@ export default function Races() {
       if (r.member_id === me.id) myRes[r.race_id] = r
     })
     const out = []
-    for (const r of races) {
-      if (isUpcoming(r) && !results.some((x) => x.race_id === r.id)) continue
+    for (const r of leafRaces(races)) {
+      if (isUpcoming(r) && !count[r.id]) continue
       if (mine && !myRes[r.id]) continue
       const s = seasonOf(r.race_date)
       const item = { ...r, n: count[r.id] || 0, my: myRes[r.id] }
@@ -37,16 +41,17 @@ export default function Races() {
     return out
   }, [races, results, me.id, mine])
 
-  const upcoming = useMemo(() => races
-    .filter((r) => isUpcoming(r) && !results.some((x) => x.race_id === r.id))
-    .filter((r) => !mine || registrations.some((g) => g.race_id === r.id && g.member_id === me.id))
+  // À venir : une carte par épreuve (tous formats confondus)
+  const upcoming = useMemo(() => topRaces(races)
+    .filter((r) => isUpcoming(r) && !legsOf(races, r).some(hasResults))
+    .filter((r) => !mine || legsOf(races, r).some((l) => registrations.some((g) => g.race_id === l.id && g.member_id === me.id)))
     .sort((a, b) => (b.is_club_goal - a.is_club_goal) || a.race_date.localeCompare(b.race_date)), [races, results, registrations, mine, me.id])
 
   return (
     <>
       <PageHead
         kicker="Compétitions"
-        title="Résultats"
+        title="Courses"
         action={isAdmin && <button className="btn btn-primary" onClick={() => setEditing({})}><Icon name="plus" size={18} /> Course</button>}
       />
       <div className="segmented">
@@ -61,7 +66,7 @@ export default function Races() {
         </section>
       )}
 
-      {bySeason.length === 0 && upcoming.length === 0 && <Empty>{mine ? 'Tu n\'as pas encore de résultat enregistré.' : 'Aucune course pour l\'instant.'}</Empty>}
+      {bySeason.length === 0 && upcoming.length === 0 && <Empty>{mine ? 'Tu n\'as pas encore de course enregistrée.' : 'Aucune course pour l\'instant.'}</Empty>}
 
       {bySeason.map((g) => (
         <section key={g.season} className="season">
@@ -69,11 +74,11 @@ export default function Races() {
           <ul className="race-list">
             {g.items.map((r) => (
               <li key={r.id}>
-                <button className="race-row" onClick={() => go(`resultats/${r.id}`)}>
+                <button className="race-row" onClick={() => go(`courses/${r.id}`)}>
                   <span className="race-date">{fullDate(r.race_date)}</span>
                   <span className="race-name">{r.name}</span>
                   <span className="race-meta">
-                    <DiscChip d={r.discipline} /> {r.format || `${km(r.distance_km)} km`}
+                    <DiscChip d={r.discipline} /> {labelOf(r)}
                     {!mine && <> · {r.n} adhérent{r.n > 1 ? 's' : ''}</>}
                   </span>
                   {r.my && (
@@ -98,39 +103,91 @@ export default function Races() {
 
 export const REG = [['going', "J'y vais"], ['interested', 'Intéressé']]
 
+// Inscription sur une épreuve : on choisit d'abord son format s'il y en a plusieurs
 export function RegisterButtons({ race }) {
-  const { registrations, me, setRegistration } = useData()
-  const mine = registrations.find((g) => g.race_id === race.id && g.member_id === me.id)?.status
+  const { races, registrations, me, setRegistration } = useData()
+  const legs = legsOf(races, race)
+  const mineReg = registrations.find((g) => g.member_id === me.id && legs.some((l) => l.id === g.race_id))
+  const [picked, setPicked] = useState(null)
+  const legId = picked || mineReg?.race_id || legs[0].id
+
+  // Changer de format quand on est déjà inscrit : l'inscription suit
+  const changeFormat = (id) => {
+    setPicked(id)
+    if (mineReg && mineReg.race_id !== id) {
+      setRegistration(mineReg.race_id, null)
+      setRegistration(id, mineReg.status)
+    }
+  }
+
+  const choose = (status) => {
+    // Un seul format par adhérent : on retire l'inscription sur les autres
+    legs.filter((l) => l.id !== legId).forEach((l) => {
+      if (registrations.some((g) => g.race_id === l.id && g.member_id === me.id)) setRegistration(l.id, null)
+    })
+    setRegistration(legId, mineReg?.status === status && mineReg.race_id === legId ? null : status)
+  }
+  const current = mineReg?.race_id === legId ? mineReg.status : null
+
   return (
-    <div className="rsvp two" role="group" aria-label="Ta participation">
-      {REG.map(([k, label]) => (
-        <button key={k} className={`rsvp-${k === 'going' ? 'yes' : 'maybe'} ${mine === k ? 'on' : ''}`} aria-pressed={mine === k}
-          onClick={(e) => { e.stopPropagation(); setRegistration(race.id, mine === k ? null : k) }}>{label}</button>
-      ))}
+    <div className="signup-controls" onClick={(e) => e.stopPropagation()}>
+      {legs.length > 1 && (
+        <label className="format-pick">
+          <span>Format</span>
+          <select value={legId} onChange={(e) => changeFormat(e.target.value)}>
+            {legs.map((l) => <option key={l.id} value={l.id}>{labelOf(l)}</option>)}
+          </select>
+        </label>
+      )}
+      <div className="rsvp two" role="group" aria-label="Ta participation">
+        {REG.map(([k, label]) => (
+          <button key={k} className={`rsvp-${k === 'going' ? 'yes' : 'maybe'} ${current === k ? 'on' : ''}`} aria-pressed={current === k}
+            onClick={() => choose(k)}>{label}</button>
+        ))}
+      </div>
     </div>
   )
 }
 
 function UpcomingCard({ r }) {
-  const { registrations, profiles } = useData()
+  const { races, registrations, profiles, me } = useData()
   const byId = Object.fromEntries(profiles.map((p) => [p.id, p]))
-  const going = registrations.filter((g) => g.race_id === r.id && g.status === 'going')
-  const interested = registrations.filter((g) => g.race_id === r.id && g.status === 'interested')
-  const d = daysTo(r.race_date)
+  const legs = legsOf(races, r)
+  const ids = legs.map((l) => l.id)
+  const going = registrations.filter((g) => ids.includes(g.race_id) && g.status === 'going')
+  const interested = registrations.filter((g) => ids.includes(g.race_id) && g.status === 'interested')
+  const mineReg = registrations.find((g) => g.member_id === me.id && ids.includes(g.race_id))
+  const myLeg = mineReg && legs.find((l) => l.id === mineReg.race_id)
   return (
-    <article className={`up-card ${r.is_club_goal ? 'goal' : ''}`} onClick={() => go(`resultats/${r.id}`)}>
+    <article className={`up-card ${r.is_club_goal ? 'goal' : ''}`} onClick={() => go(`courses/${r.id}`)}>
       {r.is_club_goal && <span className="goal-tag">Objectif club</span>}
       <div className="up-head">
-        <div className="countdown"><span>J-</span>{d}</div>
+        <div className="countdown"><span>J-</span>{daysTo(r.race_date)}</div>
         <div className="up-id">
           <span className="race-date">{fullDate(r.race_date)}{r.location ? ` · ${r.location}` : ''}</span>
           <h3>{r.name}</h3>
-          <span className="race-meta"><DiscChip d={r.discipline} /> {r.format || `${km(r.distance_km)} km`}</span>
+          <span className="race-meta">
+            <DiscChip d={r.discipline} />
+            {legs.length > 1 ? `${legs.length} formats : ${legs.map(labelOf).join(' · ')}` : labelOf(r)}
+          </span>
         </div>
       </div>
+
+      {legs.length > 1 && (
+        <ul className="format-counts">
+          {legs.map((l) => {
+            const n = registrations.filter((g) => g.race_id === l.id && g.status === 'going').length
+            return <li key={l.id} className={myLeg?.id === l.id ? 'mine' : ''}><strong>{n}</strong> {labelOf(l)}</li>
+          })}
+        </ul>
+      )}
+
       <div className="who-row static">
-        <span className="stack">{going.slice(0, 6).map((g) => <Avatar key={g.member_id} p={byId[g.member_id]} size={26} />)}</span>
-        <span className="who-count"><strong>{going.length}</strong> ASOA au départ{interested.length > 0 && <small> · {interested.length} intéressé{interested.length > 1 ? 's' : ''}</small>}</span>
+        <span className="stack">{going.slice(0, 6).map((g) => <Avatar key={g.member_id + g.race_id} p={byId[g.member_id]} size={26} />)}</span>
+        <span className="who-count">
+          <strong>{going.length}</strong> ASOA au départ{interested.length > 0 && <small> · {interested.length} intéressé{interested.length > 1 ? 's' : ''}</small>}
+        </span>
+        {myLeg && <span className={`min-chip ${mineReg.status === 'going' ? 'ok' : 'short'}`}>{mineReg.status === 'going' ? 'Inscrit' : 'Intéressé'} · {labelOf(myLeg)}</span>}
       </div>
       <RegisterButtons race={r} />
     </article>
@@ -161,18 +218,25 @@ export function RaceDetail({ id }) {
   }, [registrations, results, id])
   if (!race) return <><PageHead back title="Course introuvable" /><Empty>Cette course a peut-être été supprimée.</Empty></>
 
+  const formats = formatsOf(races, race)
+  const parent = eventOf(races, race)
+
   return (
     <>
-      <PageHead back kicker={fullDate(race.race_date)} title={race.name}
+      <PageHead back kicker={fullDate(race.race_date)} title={parent ? `${race.name} · ${labelOf(race)}` : race.name}
         action={isAdmin && <button className="icon-btn" onClick={() => setEditRace(true)} aria-label="Modifier la course"><Icon name="edit" /></button>} />
+      {parent && (
+        <button className="link-btn" onClick={() => go(`courses/${parent.id}`)}>← Tous les formats de {parent.name}</button>
+      )}
       <dl className="facts">
         <div><dt>Discipline</dt><dd><DiscChip d={race.discipline} /></dd></div>
-        <div><dt>Format</dt><dd>{race.format || '—'}</dd></div>
-        <div><dt>Distance</dt><dd className="num">{km(race.distance_km)} km</dd></div>
+        <div><dt>{formats.length ? 'Formats' : 'Format'}</dt><dd>{formats.length ? formats.length : (race.format || '—')}</dd></div>
+        <div><dt>Distance</dt><dd className="num">{formats.length ? `${km(Math.min(...formats.map((f) => f.distance_km)))} – ${km(Math.max(...formats.map((f) => f.distance_km)))} km` : `${km(race.distance_km)} km`}</dd></div>
         <div><dt>Lieu</dt><dd>{race.location || '—'}</dd></div>
       </dl>
 
-      {isUpcoming(race) && rows.length === 0 && <RaceSignup race={race} />}
+      {formats.length > 0 && <EventFormats race={race} formats={formats} />}
+      {formats.length === 0 && isUpcoming(race) && rows.length === 0 && <RaceSignup race={race} />}
       {(race.description || race.registration_url) && (
         <section className="info-block">
           {race.is_club_goal && <span className="goal-tag">Objectif club</span>}
@@ -181,7 +245,7 @@ export function RaceDetail({ id }) {
         </section>
       )}
 
-      {isAdmin && race.race_date <= todayISO() && pending.some((g) => g.status === 'going') && (
+      {formats.length === 0 && isAdmin && race.race_date <= todayISO() && pending.some((g) => g.status === 'going') && (
         <section className="bulk-callout">
           <div>
             <strong>{pending.filter((g) => g.status === 'going').length} inscrit{pending.filter((g) => g.status === 'going').length > 1 ? 's' : ''} sans résultat</strong>
@@ -191,12 +255,12 @@ export function RaceDetail({ id }) {
         </section>
       )}
 
-      {(!isUpcoming(race) || rows.length > 0 || isAdmin) && <div className="table-head">
+      {formats.length === 0 && (!isUpcoming(race) || rows.length > 0 || isAdmin) && <div className="table-head">
         <h2>{rows.length ? `${rows.length} résultat${rows.length > 1 ? 's' : ''}` : 'Résultats'}</h2>
         {isAdmin && <button className="btn btn-primary" onClick={() => setEditRes({ race_id: id })}><Icon name="plus" size={18} /> Résultat</button>}
       </div>}
 
-      {rows.length === 0 ? (!isUpcoming(race) && <Empty>Aucun résultat saisi pour cette course.</Empty>) : (
+      {formats.length > 0 ? null : rows.length === 0 ? (!isUpcoming(race) && <Empty>Aucun résultat saisi pour cette course.</Empty>) : (
         <div className="table-wrap">
           <table className="results">
             <thead>
@@ -225,7 +289,7 @@ export function RaceDetail({ id }) {
         </div>
       )}
 
-      {editRace && <RaceForm initial={race} onClose={() => setEditRace(false)} onDeleted={() => go('resultats')} />}
+      {editRace && <RaceForm initial={race} onClose={() => setEditRace(false)} onDeleted={() => go('courses')} />}
       {editRes && <ResultForm initial={editRes} race={race} onClose={() => setEditRes(null)} />}
       {bulk && <BulkResults race={race} pending={pending} onClose={() => setBulk(false)} />}
     </>
@@ -332,6 +396,51 @@ function BulkResults({ race, pending, onClose }) {
   )
 }
 
+// Les formats d'une épreuve : inscrits par format, et accès aux résultats de chacun
+function EventFormats({ race, formats }) {
+  const { registrations, results, profiles, me } = useData()
+  const byId = Object.fromEntries(profiles.map((p) => [p.id, p]))
+  const mineReg = registrations.find((g) => g.member_id === me.id && formats.some((f) => f.id === g.race_id))
+  const open = isUpcoming(race) && !formats.some((f) => results.some((x) => x.race_id === f.id))
+
+  return (
+    <section className="signup">
+      {open && (
+        <div className="signup-top">
+          <div className="countdown big"><span>J-</span>{daysTo(race.race_date)}</div>
+          <p>Choisis ton format et dis si tu y vas.</p>
+        </div>
+      )}
+      {open && <RegisterButtons race={race} />}
+
+      <ul className="format-list">
+        {formats.map((f) => {
+          const going = registrations.filter((g) => g.race_id === f.id && g.status === 'going')
+          const interested = registrations.filter((g) => g.race_id === f.id && g.status === 'interested')
+          const done = results.filter((x) => x.race_id === f.id).length
+          return (
+            <li key={f.id} className={mineReg?.race_id === f.id ? 'mine' : ''}>
+              <button onClick={() => go(`courses/${f.id}`)}>
+                <span className="f-id">
+                  <strong>{labelOf(f)}</strong>
+                  <small>{km(f.distance_km)} km{mineReg?.race_id === f.id ? ' · ton format' : ''}</small>
+                </span>
+                <span className="f-who">
+                  <span className="stack">{going.slice(0, 4).map((g) => <Avatar key={g.member_id} p={byId[g.member_id]} size={24} />)}</span>
+                  {done > 0
+                    ? <small>{done} résultat{done > 1 ? 's' : ''}</small>
+                    : <small>{going.length} au départ{interested.length > 0 ? ` · ${interested.length} intéressé${interested.length > 1 ? 's' : ''}` : ''}</small>}
+                </span>
+                <Icon name="chevron" size={18} />
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+    </section>
+  )
+}
+
 function RaceSignup({ race }) {
   const { registrations, profiles } = useData()
   const byId = Object.fromEntries(profiles.map((p) => [p.id, p]))
@@ -355,27 +464,80 @@ function RaceSignup({ race }) {
 }
 
 function RaceForm({ initial, onClose, onDeleted }) {
-  const { run, notify } = useData()
-  const [f, setF] = useState({ name: '', race_date: new Date().toISOString().slice(0, 10), location: '', discipline: 'running', format: '', distance_km: '', description: '', registration_url: '', is_club_goal: false, ...initial })
+  const { run, notify, races, results, registrations } = useData()
+  const editing = races.find((r) => r.id === initial.id)
+  const existingFormats = editing ? formatsOf(races, editing) : []
+
+  const [f, setF] = useState({
+    name: '', race_date: new Date().toISOString().slice(0, 10), location: '', discipline: 'running',
+    description: '', registration_url: '', is_club_goal: false, ...initial,
+  })
+  // Une ligne par format. Une seule ligne = course simple, comme avant.
+  const [legs, setLegs] = useState(() =>
+    existingFormats.length
+      ? existingFormats.map((c) => ({ id: c.id, format: c.format || '', distance_km: String(c.distance_km) }))
+      : [{ id: initial.id, format: initial.format || '', distance_km: initial.distance_km != null ? String(initial.distance_km) : '' }])
   const [warn, setWarn] = useState(!initial.id)
+  const [err, setErr] = useState('')
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value })
+  const setLeg = (i, patch) => setLegs((l) => l.map((x, j) => (j === i ? { ...x, ...patch } : x)))
+  const num = (v) => Number(String(v).replace(',', '.'))
+  const hasResults = (id) => id && results.some((r) => r.race_id === id)
+
+  const removeLeg = (i) => {
+    if (hasResults(legs[i].id)) return setErr(`« ${legs[i].format || 'ce format'} » a déjà des résultats : supprime-les avant de le retirer.`)
+    setErr('')
+    setLegs((l) => l.filter((_, j) => j !== i))
+  }
+
   const submit = async (e) => {
     e.preventDefault()
-    const row = { ...f, distance_km: Number(String(f.distance_km).replace(',', '.')), description: f.description || null, registration_url: f.registration_url || null }
-    const saved = await run(() => api.saveRace(row), f.id ? 'Course modifiée' : 'Course créée')
+    if (legs.some((l) => !l.distance_km || isNaN(num(l.distance_km)))) return setErr('Chaque format a besoin de sa distance en km.')
+    if (legs.length > 1 && legs.some((l) => !l.format.trim())) return setErr('Donne un nom à chaque format (10 km, semi, marathon…).')
+    setErr('')
+
+    const shared = {
+      name: f.name, race_date: f.race_date, location: f.location || null, discipline: f.discipline,
+      description: f.description || null, registration_url: f.registration_url || null, is_club_goal: !!f.is_club_goal,
+    }
+
+    const saved = await run(async () => {
+      // Course simple : une seule ligne, pas de formats rattachés
+      if (legs.length === 1 && existingFormats.length === 0) {
+        return api.saveRace({ ...shared, id: f.id, parent_id: null, format: legs[0].format || null, distance_km: num(legs[0].distance_km) })
+      }
+      // Épreuve à formats : une ligne « parent » + une ligne par format
+      const parent = await api.saveRace({ ...shared, id: f.id, parent_id: null, format: null, distance_km: 0 })
+      const kept = []
+      for (const [i, l] of legs.entries()) {
+        const child = await api.saveRace({
+          ...shared, description: null, registration_url: null,
+          id: l.id && l.id !== f.id ? l.id : undefined,
+          parent_id: parent.id, format: l.format || null, distance_km: num(l.distance_km),
+        })
+        kept.push(child.id)
+        // La course existante devient un format : ses résultats et inscriptions le suivent
+        if (i === 0 && f.id && !existingFormats.length) await api.moveRaceContent(parent.id, child.id)
+      }
+      for (const old of existingFormats) if (!kept.includes(old.id)) await api.deleteRace(old.id)
+      return parent
+    }, f.id ? 'Course modifiée' : 'Course créée')
+
     if (saved) {
-      if (warn && isUpcoming(row)) notify('race_new', saved.id || f.id)
+      if (warn && isUpcoming(f)) notify('race_new', saved.id || f.id)
       onClose()
-      if (!f.id && saved.id) go(`resultats/${saved.id}`)
+      if (!f.id && saved.id) go(`courses/${saved.id}`)
     }
   }
+
+  const multi = legs.length > 1
   return (
     <Sheet title={f.id ? 'Modifier la course' : 'Nouvelle course'} onClose={onClose}>
       <form className="form" onSubmit={submit}>
-        <Field label="Nom de la course"><input id="r-name" required value={f.name} onChange={set('name')} placeholder="Semi-marathon de Nice" /></Field>
+        <Field label="Nom de la course"><input id="r-name" required value={f.name} onChange={set('name')} placeholder="Marathon de Bologne" /></Field>
         <div className="row2">
           <Field label="Date"><input id="r-date" type="date" required value={f.race_date} onChange={set('race_date')} /></Field>
-          <Field label="Lieu"><input id="r-loc" value={f.location || ''} onChange={set('location')} placeholder="Nice" /></Field>
+          <Field label="Lieu"><input id="r-loc" value={f.location || ''} onChange={set('location')} placeholder="Bologne" /></Field>
         </div>
         <Field label="Discipline">
           <div className="segmented small">
@@ -384,18 +546,41 @@ function RaceForm({ initial, onClose, onDeleted }) {
             ))}
           </div>
         </Field>
-        <div className="row2">
-          <Field label="Format"><input id="r-format" value={f.format || ''} onChange={set('format')} placeholder="Distance M, 25 km · 1200 D+…" /></Field>
-          <Field label="Distance (km)" hint="Compte pour le challenge. Triathlon : total nage + vélo + course.">
-            <input id="r-km" required inputMode="decimal" value={f.distance_km} onChange={set('distance_km')} placeholder="21,1" />
-          </Field>
+
+        <div className="legs">
+          <div className="legs-head">
+            <span className="field-label">{multi ? 'Formats proposés' : 'Format'}</span>
+            <button type="button" className="btn btn-ghost" onClick={() => setLegs([...legs, { format: '', distance_km: '' }])}>
+              <Icon name="plus" size={16} /> Ajouter un format
+            </button>
+          </div>
+          {legs.map((l, i) => (
+            <div key={i} className="leg-row">
+              <label><span>Nom{multi ? '' : ' (optionnel)'}</span>
+                <input id={`r-fmt-${i}`} value={l.format} onChange={(e) => setLeg(i, { format: e.target.value })} placeholder={multi ? '10 km' : 'Semi-marathon, Distance M…'} />
+              </label>
+              <label><span>Distance (km)</span>
+                <input id={`r-km-${i}`} required inputMode="decimal" value={l.distance_km} onChange={(e) => setLeg(i, { distance_km: e.target.value })} placeholder="21,1" />
+              </label>
+              {legs.length > 1 && (
+                <button type="button" className="icon-btn" onClick={() => removeLeg(i)} aria-label="Retirer ce format"><Icon name="close" size={18} /></button>
+              )}
+            </div>
+          ))}
+          <p className="field-hint">
+            {multi
+              ? 'Les adhérents choisiront leur format. Chacun compte ses propres km pour le challenge.'
+              : 'Plusieurs distances au départ (10 km, semi, marathon…) ? Ajoute un format par distance.'}
+          </p>
         </div>
+
         <Field label="Infos pour les adhérents" hint="Déplacement, hébergement, plan d'entraînement…">
           <textarea id="r-desc" rows="3" value={f.description || ''} onChange={set('description')} />
         </Field>
         <Field label="Lien d'inscription (optionnel)"><input id="r-url" type="url" value={f.registration_url || ''} onChange={set('registration_url')} placeholder="https://…" /></Field>
         <label className="check"><input id="r-goal" type="checkbox" checked={!!f.is_club_goal} onChange={(e) => setF({ ...f, is_club_goal: e.target.checked })} /> Course objectif club (mise en avant)</label>
         {isUpcoming(f) && <label className="check"><input id="r-warn" type="checkbox" checked={warn} onChange={(e) => setWarn(e.target.checked)} /> {f.id ? 'Prévenir les adhérents de la modification' : 'Annoncer la course par notification'}</label>}
+        {err && <p className="form-error">{err}</p>}
         <div className="form-actions">
           {f.id && <ConfirmDelete label="Supprimer la course" onConfirm={async () => { if (await run(() => api.deleteRace(f.id), 'Course supprimée')) { onClose(); onDeleted?.() } }} />}
           <button className="btn btn-primary grow" type="submit">{f.id ? 'Enregistrer' : isUpcoming(f) ? 'Créer la course' : 'Créer et saisir les résultats'}</button>

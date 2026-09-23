@@ -89,7 +89,7 @@ export function DataProvider({ children }) {
   )
 }
 
-// Routage minimal par hash : #/resultats/r-001
+// Routage minimal par hash : #/courses/r-001
 export function useRoute() {
   const get = () => (window.location.hash.replace(/^#\/?/, '') || 'seances').split('/')
   const [route, setRoute] = useState(get)

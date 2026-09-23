@@ -14,7 +14,7 @@ self.addEventListener('push', (event) => {
   try {
     data = event.data?.json() ?? {}
   } catch {
-    data = { title: 'ASOA', body: event.data?.text() }
+    data = { title: 'ASOA Antibes', body: event.data?.text() }
   }
   event.waitUntil(
     self.registration.showNotification(data.title || 'ASOA Antibes', {
