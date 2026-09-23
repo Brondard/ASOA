@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { CHALLENGE } from '../config.js'
+import { CHALLENGE, DISCIPLINES } from '../config.js'
 import { seasonsFrom, standings } from '../lib/challenge.js'
 import { fullName, km, seasonOf } from '../lib/format.js'
 import { go, useData } from '../store.jsx'
@@ -7,6 +7,7 @@ import { Avatar, Empty, PageHead } from '../ui.jsx'
 
 export default function Challenge() {
   const { profiles, races, results, me } = useData()
+  const [discipline, setDiscipline] = useState('all')
   const seasons = useMemo(() => seasonsFrom(races), [races])
   const current = seasonOf(new Date())
   // En tout début de saison, on ouvre sur la saison écoulée si la nouvelle est encore vide
@@ -14,14 +15,19 @@ export default function Challenge() {
     const hasCurrent = standings({ profiles, races, results, season: current }).length >= 3
     return hasCurrent ? current : seasons.find((s) => s !== current) || current
   })
-  const rows = useMemo(() => standings({ profiles, races, results, season }), [profiles, races, results, season])
+  const rows = useMemo(() => standings({ profiles, races, results, season, discipline }), [profiles, races, results, season, discipline])
   const mine = rows.find((r) => r.member_id === me.id)
   const hasBonus = Object.values(CHALLENGE.podiumBonusKm).some(Boolean)
   const top = rows.slice(0, 3)
 
   return (
     <>
-      <PageHead kicker="Challenge club" title="Kilomètres en course" />
+      <PageHead kicker="Challenge club" title={discipline === 'all' ? 'Kilomètres en course' : `Classement ${DISCIPLINES[discipline].label.toLowerCase()}`} />
+      <div className="segmented" role="tablist">
+        {[['all', 'Tout'], ...Object.entries(DISCIPLINES).map(([k, v]) => [k, v.short])].map(([k, label]) => (
+          <button key={k} role="tab" aria-selected={discipline === k} className={discipline === k ? 'on' : ''} onClick={() => setDiscipline(k)}>{label}</button>
+        ))}
+      </div>
       <div className="season-picker">
         <label htmlFor="season">Saison</label>
         <select id="season" value={season} onChange={(e) => setSeason(e.target.value)}>
@@ -29,7 +35,11 @@ export default function Challenge() {
         </select>
       </div>
 
-      {rows.length === 0 ? <Empty>Pas encore de kilomètres cette saison. Premier dossard, premiers points !</Empty> : (
+      {rows.length === 0 ? (
+        <Empty>{discipline === 'all'
+          ? 'Pas encore de kilomètres cette saison. Premier dossard, premiers points !'
+          : `Aucune course ${DISCIPLINES[discipline].label.toLowerCase()} cette saison.`}</Empty>
+      ) : (
         <>
           <ol className="podium" aria-label="Podium du challenge">
             {[top[1], top[0], top[2]].map((r, i) => r && (
@@ -69,6 +79,7 @@ export default function Challenge() {
       )}
       <p className="hint">
         Règle : chaque course terminée rapporte sa distance en km (triathlon = nage + vélo + course). Les abandons ne comptent pas.
+        {discipline !== 'all' && ' Ici, seules les courses de la discipline choisie comptent.'}
         {hasBonus ? ' Les podiums catégorie donnent un bonus.' : ' À égalité, le nombre de podiums départage.'} Saison du 1er septembre au 31 août.
       </p>
     </>

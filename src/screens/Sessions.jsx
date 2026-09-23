@@ -3,6 +3,7 @@ import { api } from '../api/index.js'
 import { DISCIPLINES, USUAL_PLACES } from '../config.js'
 import { dayName, dayNum, fullName, hour, longDate, mapsUrl, monthShort, toLocalInput } from '../lib/format.js'
 import { enablePush, pushState } from '../lib/push.js'
+import { fmtVma, paceAt } from '../lib/vma.js'
 import { go, useData } from '../store.jsx'
 import { Avatar, ConfirmDelete, DiscChip, Empty, Field, Icon, PageHead, Sheet } from '../ui.jsx'
 
@@ -181,7 +182,7 @@ function SessionCard({ s, past, isAdmin, onEdit, onDuplicate, onCancel, onWho })
 }
 
 function WhoComes({ s, onClose }) {
-  const { attendance, profiles } = useData()
+  const { attendance, profiles, isAdmin } = useData()
   const byId = Object.fromEntries(profiles.map((p) => [p.id, p]))
   const groups = RSVP.map(([k, label]) => [label, attendance.filter((a) => a.session_id === s.id && a.status === k).map((a) => byId[a.member_id]).filter(Boolean)])
   return (
@@ -190,7 +191,15 @@ function WhoComes({ s, onClose }) {
       {groups.map(([label, list]) => list.length > 0 && (
         <section key={label} className="who-group">
           <h3>{label} <small>{list.length}</small></h3>
-          <ul>{list.map((p) => <li key={p.id}><Avatar p={p} size={32} /> {fullName(p)}</li>)}</ul>
+          <ul>{list.map((p) => (
+            <li key={p.id}>
+              <Avatar p={p} size={32} />
+              <span className="who-name">{fullName(p)}</span>
+              {p.vma
+                ? <span className="vma-tag">{fmtVma(p.vma)}<small>{paceAt(p.vma)}/km</small></span>
+                : isAdmin && <span className="vma-tag empty">VMA ?</span>}
+            </li>
+          ))}</ul>
         </section>
       ))}
     </Sheet>

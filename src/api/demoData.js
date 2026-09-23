@@ -27,6 +27,7 @@ export function buildDemo() {
     city: pick(CITIES),
     disciplines: i === 0 ? ['running', 'trail', 'triathlon'] : pick(DISC_SETS),
     is_admin: i === 0,
+    vma: i % 7 === 3 ? null : Math.round((12 + rnd() * 7.5) * 2) / 2,
     level: 0.82 + rnd() * 0.45, // 1 = niveau moyen, plus petit = plus rapide
   }))
 

@@ -2,12 +2,13 @@ import { CHALLENGE } from '../config.js'
 import { seasonOf } from './format.js'
 
 // Classement du challenge pour une saison : km des courses terminées (+ bonus podium éventuel)
-export function standings({ profiles, races, results, season }) {
+export function standings({ profiles, races, results, season, discipline }) {
   const raceById = Object.fromEntries(races.map((r) => [r.id, r]))
   const rows = {}
   for (const res of results) {
     const race = raceById[res.race_id]
     if (!race || seasonOf(race.race_date) !== season) continue
+    if (discipline && discipline !== 'all' && race.discipline !== discipline) continue
     if (res.time_seconds == null) continue // abandon : ne compte pas
     const row = (rows[res.member_id] ||= { member_id: res.member_id, km: 0, races: 0, podiums: 0, bonus: 0 })
     row.km += Number(race.distance_km)

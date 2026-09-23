@@ -45,6 +45,10 @@ Tes données existantes ne sont pas touchées. Pour une installation neuve, `sch
 Dans **SQL Editor**, lance `supabase/upgrade-v3.sql`. Il ajoute la colonne qui relie les formats
 (10 km, semi, marathon…) à leur épreuve. Les courses existantes ne bougent pas.
 
+## 2 bis 3. Passer à la v4 (VMA)
+
+Dans **SQL Editor**, lance `supabase/upgrade-v4.sql` : il ajoute la VMA sur la fiche des adhérents.
+
 ## 2 ter. Notifications push
 
 Trois morceaux : des clés de chiffrement, la fonction qui envoie, et le rappel quotidien.
@@ -161,6 +165,13 @@ Dès le jour de la course, le coach voit sur la page de la course un encadré «
 Le bouton **« Saisir les temps des inscrits »** ouvre une ligne par inscrit (« J'y vais » cochés Classé, « Intéressé » cochés Pas couru) :
 on tape les temps, on marque les abandons, et tout s'enregistre d'un coup. « Pas couru » retire l'inscription.
 
+## VMA et allures
+
+Chaque adhérent renseigne sa VMA depuis son profil (Modifier → VMA). L'app en déduit les allures repères
+(100 % sur 400 m, 95 % sur 1000 m, 90 % au seuil, 75 % en endurance) et les affiche sur sa fiche.
+Le coach retrouve la VMA et l'allure à 100 % de chaque présent en touchant la ligne des inscrits d'une séance,
+et un coach peut aussi renseigner la VMA de quelqu'un depuis sa fiche. Les pourcentages se règlent dans `src/lib/vma.js`.
+
 ## Records perso et badges
 
 Calculés automatiquement à partir des résultats, sans saisie en plus.
@@ -173,16 +184,21 @@ Calculés automatiquement à partir des résultats, sans saisie en plus.
 Chaque course **terminée** rapporte sa distance en km (triathlon = nage + vélo + course, à saisir dans « Distance »).
 Les abandons (DNF) ne comptent pas. Égalité : le nombre de podiums départage, puis le nombre de courses.
 
+Un filtre en haut de l'écran donne le classement **général** ou un classement par discipline
+(course à pied, trail, triathlon), sur la saison choisie. Même règle, seules les courses de la discipline comptent.
+
 ## Structure
 
 ```
 supabase/schema.sql      tables, sécurité, stockage des photos (installation complète)
 supabase/upgrade-v2.sql  mise à jour v1 -> v2
 supabase/upgrade-v3.sql  mise à jour v2 -> v3 (formats multiples)
+supabase/upgrade-v4.sql  mise à jour v3 -> v4 (VMA)
 supabase/cron-rappels.sql rappels quotidiens
 supabase/functions/notify/ envoi des notifications push
 supabase/emails/          modèles d'e-mails (confirmation, invitation, mot de passe…)
 src/sw.js                service worker (hors ligne + réception des notifications)
+src/assets/              logo du club (bandeau + carré)
 src/config.js            réglages du club
 src/api/                 supabaseApi (vraie base) / demoApi (données fictives)
 src/screens/             Séances, Courses, Challenge, Trombi, Profil, Connexion

@@ -262,3 +262,11 @@ drop trigger if exists check_race_depth on public.races;
 create trigger check_race_depth
   before insert or update on public.races
   for each row execute function public.check_race_depth();
+
+
+-- =====================================================================
+--  v4 : VMA des adhérents
+-- =====================================================================
+
+alter table public.profiles add column if not exists vma numeric(4,1)
+  check (vma is null or (vma > 5 and vma < 30));

@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { api } from '../api/index.js'
-import { CLUB } from '../config.js'
 import { useData } from '../store.jsx'
 import { Field, Logo } from '../ui.jsx'
 
@@ -35,7 +34,7 @@ export default function Login() {
     <div className="login">
       <div className="login-hero">
         <Logo big />
-        <p>{CLUB.fullName} · Course à pied · Trail · Triathlon</p>
+        <p>Course à pied · Trail · Triathlon</p>
       </div>
 
       <form className="form login-card" onSubmit={submit}>

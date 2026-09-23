@@ -1,15 +1,15 @@
 /* ASOA — rouge & noir. Barlow Condensed pour les chiffres et titres (esprit dossard), Barlow pour le texte. */
 :root {
-  --red: #d0152b;
+  --red: #d2050f;          /* rouge du logo */
   --red-ink: #ffffff;
-  --red-soft: #fbe7e9;
+  --red-soft: #fbe6e7;
   --ink: #161213;
   --ink-2: #3b3435;
   --muted: #736a6b;
   --line: #e7e0df;
   --paper: #f5f2f1;
   --surface: #ffffff;
-  --bar: #141112;
+  --bar: #070606;
   --bar-ink: #f5f1f0;
   --trail: #3c7a4a;
   --trail-soft: #e3efe5;
@@ -30,18 +30,18 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --red: #ef3a4e; --red-soft: #3a1418;
+    --red: #f2343f; --red-soft: #3a1114;
     --ink: #f3eeed; --ink-2: #d4cccb; --muted: #a09697; --line: #2e2829;
-    --paper: #0f0c0d; --surface: #1a1617; --bar: #070506; --bar-ink: #f3eeed;
+    --paper: #0f0c0d; --surface: #1a1617; --bar: #050404; --bar-ink: #f3eeed;
     --trail: #6fbf80; --trail-soft: #16291b; --tri: #6aa8e6; --tri-soft: #132436;
     --ok: #4fb56e; --ok-soft: #14301d; --warn: #f0a04b; --warn-soft: #3a2410;
     --shadow: 0 1px 2px rgb(0 0 0 / 0.4); color-scheme: dark;
   }
 }
 :root[data-theme='dark'] {
-  --red: #ef3a4e; --red-soft: #3a1418;
+  --red: #f2343f; --red-soft: #3a1114;
   --ink: #f3eeed; --ink-2: #d4cccb; --muted: #a09697; --line: #2e2829;
-  --paper: #0f0c0d; --surface: #1a1617; --bar: #070506; --bar-ink: #f3eeed;
+  --paper: #0f0c0d; --surface: #1a1617; --bar: #050404; --bar-ink: #f3eeed;
   --trail: #6fbf80; --trail-soft: #16291b; --tri: #6aa8e6; --tri-soft: #132436;
     --ok: #4fb56e; --ok-soft: #14301d; --warn: #f0a04b; --warn-soft: #3a2410;
   --shadow: 0 1px 2px rgb(0 0 0 / 0.4); color-scheme: dark;
@@ -64,15 +64,9 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
 .num, .c-num, .bib, .step-km, .stats dd { font-variant-numeric: tabular-nums; }
 
 /* ---------- Logo ---------- */
-.logo { display: inline-flex; align-items: baseline; gap: 8px; text-decoration: none; }
-.logo-mark {
-  font: italic 800 26px/1 var(--display); letter-spacing: 0.02em; color: #fff;
-  background: var(--red); padding: 3px 10px 2px 8px;
-  clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%);
-}
-.logo-city { font: 600 13px/1 var(--display); text-transform: uppercase; letter-spacing: 0.18em; color: var(--bar-ink); opacity: 0.8; }
-.logo-big .logo-mark { font-size: 54px; padding: 6px 20px 4px 16px; clip-path: polygon(12px 0, 100% 0, calc(100% - 12px) 100%, 0 100%); }
-.logo-big .logo-city { font-size: 18px; }
+.logo { display: block; height: 34px; width: auto; }
+.logo-square { display: block; width: 200px; max-width: 60vw; height: auto; margin-inline: auto; border-radius: 14px; }
+.splash .logo-square { width: 160px; }
 
 /* ---------- Shell ---------- */
 .shell { min-height: 100vh; padding-bottom: calc(var(--tab-h) + env(safe-area-inset-bottom, 0px) + 24px); }
@@ -317,10 +311,10 @@ table.results { width: 100%; border-collapse: collapse; font-size: 15px; }
 .login { min-height: 100vh; display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 0 16px 32px; background: var(--paper); }
 .login-hero {
   width: calc(100% + 32px); margin: 0 -16px; padding: 48px 16px 64px; text-align: center;
-  background: var(--bar) linear-gradient(115deg, transparent 58%, var(--red) 58%, var(--red) 64%, transparent 64%);
+  background: var(--bar);
   color: var(--bar-ink);
 }
-.login-hero p { margin: 14px 0 0; font: 600 15px var(--display); text-transform: uppercase; letter-spacing: 0.14em; opacity: 0.85; }
+.login-hero p { margin: 16px 0 0; font: 600 15px var(--display); text-transform: uppercase; letter-spacing: 0.14em; opacity: 0.85; }
 .login-card { width: 100%; max-width: 420px; margin-top: -44px; padding: 20px; background: var(--surface); border-radius: 10px; box-shadow: var(--shadow); }
 .login-card h1 { font: 700 26px/1 var(--display); text-transform: uppercase; }
 .login-links { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; }
@@ -491,3 +485,23 @@ table.results { width: 100%; border-collapse: collapse; font-size: 15px; }
 .leg-row span { font: 700 12px/1 var(--display); text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
 .form .leg-row input { padding: 9px 10px; }
 .leg-row .icon-btn { width: 38px; height: 38px; color: var(--red); }
+
+/* ---------- VMA ---------- */
+.vma-box { display: flex; flex-direction: column; gap: 10px; padding: 14px; background: var(--surface); border-radius: 8px; box-shadow: var(--shadow); }
+.vma-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.vma-value { font: 800 30px/1 var(--display); font-variant-numeric: tabular-nums; }
+.vma-value small { margin-left: 8px; font: 700 13px var(--display); text-transform: uppercase; letter-spacing: 0.12em; color: var(--red); }
+.vma-zones { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.vma-zones li { display: flex; flex-direction: column; gap: 1px; padding: 8px 6px; background: var(--surface); text-align: center; }
+.vma-zones strong { font: 800 19px/1 var(--display); font-variant-numeric: tabular-nums; }
+.vma-zones small { font-size: 11px; line-height: 1.2; color: var(--muted); }
+.vma-empty { display: flex; flex-direction: column; gap: 2px; padding: 14px; text-align: left; background: transparent; border: 1px dashed var(--line); border-radius: 8px; color: var(--ink); }
+.vma-empty strong { font: 700 18px var(--display); text-transform: uppercase; }
+.vma-empty small { color: var(--muted); }
+.t-vma { font: 700 12px var(--display); letter-spacing: 0.06em; color: var(--muted); }
+.who-group li .who-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vma-tag { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.vma-tag { font: 700 14px var(--display); color: var(--ink); }
+.vma-tag small { font: 600 11px var(--body); color: var(--muted); }
+.vma-tag.empty { font: 600 12px var(--body); color: var(--muted); border: 1px dashed var(--line); border-radius: 4px; padding: 2px 6px; }
+@media (max-width: 480px) { .vma-zones { grid-template-columns: repeat(2, 1fr); } }

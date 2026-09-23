@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import logoMark from './assets/logo.png'
+import logoSquare from './assets/logo-square.jpg'
 import { DISCIPLINES } from './config.js'
 import { initials } from './lib/format.js'
 
@@ -100,10 +102,7 @@ export function PageHead({ title, kicker, action, back }) {
   )
 }
 
-export const Logo = ({ big }) => (
-  <span className={`logo ${big ? 'logo-big' : ''}`} aria-label="ASOA Antibes">
-    <span className="logo-mark">ASOA</span>
-    <span className="logo-city">Antibes</span>
-  </span>
-)
+export const Logo = ({ big }) => (big
+  ? <img className="logo-square" src={logoSquare} alt="ASOA Antibes — Run, Triathlon, Trail" width="220" height="220" />
+  : <img className="logo" src={logoMark} alt="ASOA Antibes" />)
 
