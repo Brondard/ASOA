@@ -101,6 +101,17 @@ export const supabaseApi = {
     ok(await sb().rpc('delete_my_account'))
     await sb().auth.signOut({ scope: 'local' })
   },
+  // Fiches d'adhérents sans compte, gérées par les coachs
+  createGuest: async ({ first_name, last_name }) =>
+    ok(await sb().from('profiles').insert({ first_name, last_name, guest: true, approved: true }).select().single()),
+  async deleteGuest(id) {
+    await removeAvatars(id)
+    const rows = ok(await sb().from('profiles').delete().eq('id', id).eq('guest', true).select())
+    if (!rows.length) throw new Error('Action réservée aux coachs.')
+  },
+  async linkGuest(guestId, accountId) {
+    ok(await sb().rpc('link_guest', { p_guest: guestId, p_account: accountId }))
+  },
   async myEmail() {
     const { data } = await sb().auth.getSession()
     return data.session?.user?.email || null

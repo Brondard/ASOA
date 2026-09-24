@@ -56,6 +56,12 @@ les nouveaux inscrits attendent qu'un coach les valide (onglet **Coachs**) avant
 Il ajoute aussi la suppression de compte par l'adhérent lui-même (page « Tes données »).
 Lance-le **avant** de mettre en ligne la nouvelle version de l'app.
 
+## 2 bis 5. Passer à la v6 (résultats par l'adhérent, adhérents sans compte)
+
+Dans **SQL Editor**, lance `supabase/upgrade-v6.sql`, **avant** de mettre en ligne la nouvelle version de l'app.
+Il permet à chacun de saisir ses propres résultats, et aux coachs de créer des fiches pour les adhérents
+sans compte (onglet **Coachs** › « Sans compte »), reliées plus tard à leur compte s'ils s'inscrivent.
+
 ## 2 ter. Notifications push
 
 Trois morceaux : des clés de chiffrement, la fonction qui envoie, et le rappel quotidien.
@@ -202,6 +208,7 @@ supabase/upgrade-v2.sql  mise à jour v1 -> v2
 supabase/upgrade-v3.sql  mise à jour v2 -> v3 (formats multiples)
 supabase/upgrade-v4.sql  mise à jour v3 -> v4 (VMA)
 supabase/upgrade-v5.sql  mise à jour v4 -> v5 (validation des comptes, suppression de compte)
+supabase/upgrade-v6.sql  mise à jour v5 -> v6 (résultats par l'adhérent, adhérents sans compte)
 supabase/cron-rappels.sql rappels quotidiens
 supabase/functions/notify/ envoi des notifications push
 supabase/emails/          modèles d'e-mails (confirmation, invitation, mot de passe…)

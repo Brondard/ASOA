@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '../api/index.js'
 import { DISCIPLINES, USUAL_PLACES } from '../config.js'
+import { addSessionToCalendar } from '../lib/calendar.js'
 import { dayName, dayNum, fullName, hour, longDate, mapsUrl, monthShort, toLocalInput } from '../lib/format.js'
 import { enablePush, pushState } from '../lib/push.js'
 import { fmtVma, paceAt } from '../lib/vma.js'
@@ -138,6 +139,9 @@ function SessionCard({ s, past, isAdmin, onEdit, onDuplicate, onCancel, onWho })
       {s.cancelled && <p className="cancel-banner"><strong>Séance annulée</strong>{s.cancel_reason && <> · {s.cancel_reason}</>}</p>}
       <div className="session-top">
         <span className="session-time"><Icon name="clock" size={16} /> {hour(s.starts_at)}{s.duration_min ? ` · ${s.duration_min} min` : ''}</span>
+        {!past && !s.cancelled && (
+          <button className="cal-btn" onClick={() => addSessionToCalendar(s)} aria-label="Ajouter à mon agenda"><Icon name="calendar" size={15} /> Agenda</button>
+        )}
         <DiscChip d={s.discipline} />
       </div>
       <h3>{s.title}</h3>

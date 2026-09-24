@@ -32,7 +32,7 @@ export default function Members() {
             <button onClick={() => go(`membres/${p.id}`)}>
               <Avatar p={p} size={64} />
               <span className="t-name">{p.first_name}<br /><strong>{p.last_name}</strong></span>
-              <span className="t-disc">{p.disciplines.map((d) => <DiscChip key={d} d={d} />)}</span>
+              <span className="t-disc">{p.disciplines.map((d) => <DiscChip key={d} d={d} />)}{p.guest && <span className="chip chip-guest">Sans compte</span>}</span>
               {p.vma && <span className="t-vma">VMA {fmtVma(p.vma)}</span>}
             </button>
           </li>
@@ -77,7 +77,7 @@ export function MemberDetail({ id, self }) {
         <div className="profile-id">
           <h2>{p.first_name} <strong>{p.last_name}</strong></h2>
           {p.city && <p className="muted"><Icon name="pin" size={15} /> {p.city}</p>}
-          <div className="t-disc">{p.disciplines.map((d) => <DiscChip key={d} d={d} />)}{p.is_admin && <span className="chip chip-coach">Coach</span>}</div>
+          <div className="t-disc">{p.disciplines.map((d) => <DiscChip key={d} d={d} />)}{p.is_admin && <span className="chip chip-coach">Coach</span>}{p.guest && <span className="chip chip-guest">Sans compte</span>}</div>
         </div>
         {canEdit && <button className="btn btn-ghost" onClick={() => setEdit(true)}><Icon name="edit" size={16} /> Modifier</button>}
       </section>

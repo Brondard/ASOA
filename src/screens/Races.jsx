@@ -3,6 +3,7 @@ import { api } from '../api/index.js'
 import { DISCIPLINES } from '../config.js'
 import { fmtTime, fullDate, fullName, km, maskTime, pace, parseTime, seasonOf } from '../lib/format.js'
 import { eventOf, formatsOf, isEvent, labelOf, leafRaces, legsOf, topRaces } from '../lib/events.js'
+import { addRaceToCalendar } from '../lib/calendar.js'
 import { recordBreakers } from '../lib/records.js'
 import { go, useData } from '../store.jsx'
 import { Avatar, ConfirmDelete, DiscChip, Empty, Field, Icon, PageHead, Sheet } from '../ui.jsx'
@@ -220,6 +221,10 @@ export function RaceDetail({ id }) {
 
   const formats = formatsOf(races, race)
   const parent = eventOf(races, race)
+  // L'adhérent saisit lui-même son résultat, dès le jour de la course (jamais sur une épreuve à formats)
+  const canSelf = formats.length === 0 && race.race_date <= todayISO()
+  const myResult = rows.find((r) => r.member_id === me.id)
+  const myFormat = formats.find((f) => registrations.some((g) => g.race_id === f.id && g.member_id === me.id))
 
   return (
     <>
@@ -234,6 +239,11 @@ export function RaceDetail({ id }) {
         <div><dt>Distance</dt><dd className="num">{formats.length ? `${km(Math.min(...formats.map((f) => f.distance_km)))} – ${km(Math.max(...formats.map((f) => f.distance_km)))} km` : `${km(race.distance_km)} km`}</dd></div>
         <div><dt>Lieu</dt><dd>{race.location || '—'}</dd></div>
       </dl>
+      {isUpcoming(race) && (
+        <button className="link-btn cal-link" onClick={() => addRaceToCalendar(race, parent ? labelOf(race) : myFormat && labelOf(myFormat))}>
+          <Icon name="calendar" size={16} /> Ajouter à mon agenda
+        </button>
+      )}
 
       {formats.length > 0 && <EventFormats race={race} formats={formats} />}
       {formats.length === 0 && isUpcoming(race) && rows.length === 0 && <RaceSignup race={race} />}
@@ -255,10 +265,13 @@ export function RaceDetail({ id }) {
         </section>
       )}
 
-      {formats.length === 0 && (!isUpcoming(race) || rows.length > 0 || isAdmin) && <div className="table-head">
+      {formats.length === 0 && (!isUpcoming(race) || rows.length > 0 || isAdmin || canSelf) && <div className="table-head">
         <h2>{rows.length ? `${rows.length} résultat${rows.length > 1 ? 's' : ''}` : 'Résultats'}</h2>
-        {isAdmin && <button className="btn btn-primary" onClick={() => setEditRes({ race_id: id })}><Icon name="plus" size={18} /> Résultat</button>}
+        {isAdmin
+          ? <button className="btn btn-primary" onClick={() => setEditRes({ race_id: id })}><Icon name="plus" size={18} /> Résultat</button>
+          : canSelf && !myResult && <button className="btn btn-primary" onClick={() => setEditRes({ race_id: id, member_id: me.id })}><Icon name="plus" size={18} /> Mon résultat</button>}
       </div>}
+      {!isAdmin && canSelf && myResult && <p className="hint">Touche ta ligne pour corriger ton résultat.</p>}
 
       {formats.length > 0 ? null : rows.length === 0 ? (!isUpcoming(race) && <Empty>Aucun résultat saisi pour cette course.</Empty>) : (
         <div className="table-wrap">
@@ -268,7 +281,7 @@ export function RaceDetail({ id }) {
             </thead>
             <tbody>
               {rows.map((r, i) => (
-                <tr key={r.id} className={r.member_id === me.id ? 'me' : ''} onClick={() => (isAdmin ? setEditRes(r) : go(`membres/${r.member_id}`))}>
+                <tr key={r.id} className={r.member_id === me.id ? 'me' : ''} onClick={() => (isAdmin || (canSelf && r.member_id === me.id) ? setEditRes(r) : go(`membres/${r.member_id}`))}>
                   <td className="c-pos">{r.time_seconds ? i + 1 : '–'}</td>
                   <td>
                     <span className="who"><Avatar p={r.p} size={30} /><span>{fullName(r.p)}</span><Medal n={r.podium} /></span>
@@ -290,7 +303,7 @@ export function RaceDetail({ id }) {
       )}
 
       {editRace && <RaceForm initial={race} onClose={() => setEditRace(false)} onDeleted={() => go('courses')} />}
-      {editRes && <ResultForm initial={editRes} race={race} onClose={() => setEditRes(null)} />}
+      {editRes && <ResultForm initial={editRes} race={race} self={!isAdmin} onClose={() => setEditRes(null)} />}
       {bulk && <BulkResults race={race} pending={pending} onClose={() => setBulk(false)} />}
     </>
   )
@@ -590,7 +603,8 @@ function RaceForm({ initial, onClose, onDeleted }) {
   )
 }
 
-function ResultForm({ initial, race, onClose }) {
+// self : l'adhérent saisit son propre résultat (pas de choix de l'adhérent, pas de « suivant »)
+function ResultForm({ initial, race, self, onClose }) {
   const { run, profiles, results } = useData()
   const taken = new Set(results.filter((r) => r.race_id === race.id && r.id !== initial.id).map((r) => r.member_id))
   const knownFinishers = results.find((r) => r.race_id === race.id && r.finishers)?.finishers
@@ -626,14 +640,16 @@ function ResultForm({ initial, race, onClose }) {
   }
 
   return (
-    <Sheet title={f.id ? 'Modifier le résultat' : `Résultat · ${race.name}`} onClose={onClose}>
+    <Sheet title={self ? `Mon résultat · ${race.name}` : f.id ? 'Modifier le résultat' : `Résultat · ${race.name}`} onClose={onClose}>
       <form className="form" onSubmit={(e) => { e.preventDefault(); save(false) }}>
-        <Field label="Adhérent">
-          <select id="x-member" value={f.member_id} onChange={set('member_id')} required>
-            <option value="">Choisir…</option>
-            {members.map((p) => <option key={p.id} value={p.id} disabled={taken.has(p.id)}>{p.last_name} {p.first_name}{taken.has(p.id) ? ' (déjà saisi)' : ''}</option>)}
-          </select>
-        </Field>
+        {!self && (
+          <Field label="Adhérent">
+            <select id="x-member" value={f.member_id} onChange={set('member_id')} required>
+              <option value="">Choisir…</option>
+              {members.map((p) => <option key={p.id} value={p.id} disabled={taken.has(p.id)}>{p.last_name} {p.first_name}{p.guest ? ' (sans compte)' : ''}{taken.has(p.id) ? ' (déjà saisi)' : ''}</option>)}
+            </select>
+          </Field>
+        )}
         <div className="row2">
           <Field label="Temps" hint="Tape les chiffres : 14218 donne 1:42:18">
             <input id="x-time" inputMode="numeric" autoComplete="off" value={f.time} disabled={f.dnf} placeholder="1:42:18"
@@ -657,7 +673,7 @@ function ResultForm({ initial, race, onClose }) {
         <div className="form-actions">
           {f.id
             ? <ConfirmDelete onConfirm={async () => (await run(() => api.deleteResult(f.id), 'Résultat supprimé')) && onClose()} />
-            : <button type="button" className="btn btn-ghost" onClick={() => save(true)}>Enregistrer + suivant</button>}
+            : !self && <button type="button" className="btn btn-ghost" onClick={() => save(true)}>Enregistrer + suivant</button>}
           <button className="btn btn-primary grow" type="submit">Enregistrer</button>
         </div>
       </form>

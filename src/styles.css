@@ -529,3 +529,19 @@ table.results { width: 100%; border-collapse: collapse; font-size: 15px; }
 .legal a { color: var(--red); }
 .legal-date { margin-top: 12px !important; font-size: 13px; color: var(--muted); }
 .login-privacy { font-size: 14px; color: var(--muted); }
+
+/* ---------- Agenda ---------- */
+.cal-btn {
+  margin-left: auto; display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px;
+  border: 1px solid var(--line); border-radius: 5px; background: transparent; color: var(--ink-2); font-size: 13px; font-weight: 600;
+}
+.cal-btn:hover { background: var(--paper); }
+.cal-link { display: inline-flex; align-items: center; gap: 6px; }
+
+/* ---------- Adhérents sans compte ---------- */
+.chip-guest { background: transparent; color: var(--muted); border: 1px dashed var(--line); }
+.role-list li.pending-row { flex-direction: column; align-items: stretch; }
+.pending-main { display: flex; align-items: center; gap: 10px; }
+.pending-link { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; padding-top: 8px; border-top: 1px dashed var(--line); }
+.pending-link label { flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+.pending-link select { min-height: 38px; padding: 0 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); font-size: 15px; }

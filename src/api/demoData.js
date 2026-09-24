@@ -203,6 +203,12 @@ export function buildDemo() {
   profiles.push(
     { id: 'm-900', first_name: 'Gaëlle', last_name: 'Nouveau', avatar_url: null, city: 'Antibes', disciplines: ['running'], is_admin: false, vma: null, approved: false },
     { id: 'm-901', first_name: 'Bruno', last_name: 'Inconnu', avatar_url: null, city: null, disciplines: [], is_admin: false, vma: null, approved: false },
+    // Fiche sans compte créée par un coach, au même nom que l'inscription en attente (pour tester « Relier »)
+    { id: 'g-000', first_name: 'Gaëlle', last_name: 'Nouveau', avatar_url: null, city: 'Antibes', disciplines: ['running'], is_admin: false, vma: 14.5, approved: true, guest: true },
+  )
+  results.push(
+    { id: 'x-g00', race_id: 'r-001', member_id: 'g-000', time_seconds: 2890, rank_overall: 612, finishers: 1450, podium: null, note: null },
+    { id: 'x-g01', race_id: 'r-006', member_id: 'g-000', time_seconds: 6420, rank_overall: 1804, finishers: 3100, podium: null, note: null },
   )
 
   return { profiles, races, results, sessions, attendance, registrations }

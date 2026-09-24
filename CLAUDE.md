@@ -33,14 +33,15 @@ src/
   api/supabaseApi.js     Vraie base. Toutes les requêtes passent par ici, jamais depuis un écran.
   api/demoApi.js         Même interface, en mémoire (mode démo)
   api/demoData.js        Jeu de données fictif (noms inventés)
-  screens/               Sessions, Races, Challenge, Members, Coaches (rôles + validation des inscrits),
+  screens/               Sessions, Races, Challenge, Members, Coaches (rôles, validation des inscrits, fiches sans compte),
                          Privacy (page RGPD, export, suppression de compte, écran « en attente »), Login
-  lib/                   format (dates/temps), challenge, events (épreuves/formats), records, badges, vma, push
+  lib/                   format (dates/temps), challenge, events (épreuves/formats), records, badges, vma, push,
+                         calendar (fichiers .ics « Ajouter à mon agenda »), download
   ui.jsx                 Icônes SVG inline, Avatar, Sheet, Field, PageHead, Logo, ConfirmDelete
   assets/                logo.png (bandeau détouré) + logo-square.jpg
 supabase/
   schema.sql             Installation complète (idempotent)
-  upgrade-v2/v3/v4.sql   Migrations successives, à lancer dans l'ordre sur une base existante
+  upgrade-v2…v6.sql      Migrations successives, à lancer dans l'ordre sur une base existante
   cron-rappels.sql       pg_cron + pg_net -> appelle la fonction notify tous les jours
   functions/notify/      Edge Function d'envoi des notifications push
   emails/                Modèles d'e-mails Supabase, générés par build.py
@@ -58,7 +59,7 @@ supabase/
 
 | Table | Rôle |
 |---|---|
-| `profiles` | 1 par compte : prénom, nom, photo, ville, disciplines[], `is_admin`, `vma`, `approved` (validé par un coach) |
+| `profiles` | 1 par adhérent : prénom, nom, photo, ville, disciplines[], `is_admin`, `vma`, `approved` (validé par un coach), `guest` (fiche sans compte) |
 | `sessions` | séances : date/heure, discipline, titre, description, lieu (+lat/lng), `min_participants`, `cancelled`, `cancel_reason` |
 | `session_attendance` | (session, membre) → `yes` / `maybe` / `no` |
 | `races` | courses ET épreuves : `parent_id` non nul = c'est un **format** d'une épreuve. Une épreuve porte les infos communes, ses formats portent `format` + `distance_km` |
@@ -67,13 +68,20 @@ supabase/
 | `push_subscriptions` | 1 par appareil abonné aux notifications |
 
 **RLS** : lecture réservée aux comptes validés (`is_member()` = `approved` ou coach) ; un compte en attente
-ne voit que son propre profil. Écriture séances/courses/résultats réservée aux `is_admin` ;
-chacun gère son profil, ses présences, ses inscriptions et ses abonnements push.
-Un trigger empêche un adhérent de changer `is_admin` ou `approved` depuis l'app (mais pas depuis le dashboard Supabase).
+ne voit que son propre profil. Écriture séances/courses/résultats réservée aux `is_admin`, sauf que chaque adhérent
+écrit ses propres résultats (courses du jour ou passées, jamais sur une épreuve à formats), publiés sans validation.
+Chacun gère son profil, ses présences, ses inscriptions et ses abonnements push.
+Un trigger empêche un adhérent de changer `is_admin`, `approved` ou `guest` depuis l'app (mais pas depuis le dashboard Supabase).
 
 **Validation des inscrits** : nouveau compte = `approved = false` → écran « en attente », aucune donnée chargée.
 Côté client, `store.profiles` ne contient que les membres validés, `store.pending` les comptes à valider
 (affichés seulement dans l'onglet Coachs, avec une pastille). Refuser = supprimer le compte (RPC `refuse_member`).
+
+**Adhérents sans compte** : un coach crée une fiche `guest = true` (profil sans utilisateur Supabase, d'où
+l'absence de clé étrangère `profiles.id -> auth.users` ; la cascade à la suppression d'un utilisateur est assurée
+par le trigger `on_auth_user_deleted`). La fiche compte au challenge comme les autres. Si la personne s'inscrit,
+le coach relie la fiche au compte en le validant (RPC `link_guest` : résultats, inscriptions et présences passent
+sur le compte, la fiche est supprimée). Une fiche ne peut pas être coach.
 
 **Suppression de compte** : RPC `delete_my_account` (supprime `auth.users`, tout le reste suit en cascade) ;
 la photo est retirée du Storage par l'app juste avant. Refusé pour le dernier coach.
@@ -92,6 +100,7 @@ Le tout premier coach se nomme en SQL : `update profiles set is_admin = true whe
   Un résultat qui bat un record précédent affiche « RP ».
 - **Badges** : 16 badges calculés à la volée dans `lib/badges.js` (aucune donnée stockée).
 - **VMA** : saisie par l'adhérent ou par un coach ; allures dérivées à 100/95/90/75 % (`lib/vma.js`).
+- **Résultat saisi par l'adhérent** : bouton « Mon résultat » sur une course du jour ou passée ; il peut le corriger ou le supprimer.
 - **Saisie groupée des temps** : dès le jour de la course, le coach voit les inscrits sans résultat et saisit tout d'un coup.
   « Pas couru » sur un inscrit « J'y vais » supprime son inscription.
 - **Notifications** : types `session_new`, `session_updated`, `session_cancelled`, `race_new`, `results`, `test`,
@@ -99,8 +108,8 @@ Le tout premier coach se nomme en SQL : `update profiles set is_admin = true whe
 
 ## État de l'infrastructure (au 24 septembre 2026)
 
-- Base Supabase en place (région Paris, eu-west-3) ; migrations v2 et v3 passées, **v4 (VMA) et v5 (validation + RGPD) à lancer**
-  si ce n'est pas déjà fait. `isMember()` du store laisse passer tout le monde tant que la colonne `approved` n'existe pas.
+- Base Supabase en place (région Paris, eu-west-3) ; migrations v2 à v5 passées, app en ligne depuis le 24/09/2026
+  (les coachs ont un accès et testent). **v6 (résultats par l'adhérent, fiches sans compte) à lancer.**
 - **E-mails désactivés.** Un essai avec Brevo a échoué et le SMTP a été désactivé. Dans Supabase,
   « Confirm email » est décoché pour que les inscriptions marchent sans e-mail.
   Blocage : le club a bien le domaine `asoa-antibes.fr` (site IONOS MyWebsite), mais les accès DNS et
@@ -122,7 +131,7 @@ Le tout premier coach se nomme en SQL : `update profiles set is_admin = true whe
 
 Fil d'actualité du club, covoiturage vers les courses, ajout au calendrier, page publique de présentation
 pour recruter, photos par course, intégration Strava, km-effort en trail (distance + D+/100),
-adhérents sans compte saisis par le coach, séances récurrentes, résultats proposés par l'adhérent,
+séances récurrentes, abonnement agenda (flux .ics qui se met à jour tout seul),
 suppression par un coach d'un adhérent qui a quitté le club.
 Écartés (réponse de l'utilisateur, 24/09/2026) : fil d'actu et photos (le club utilise Instagram),
 gestion des adhésions, appel aux séances (le « je viens » sert d'ordre d'idée).

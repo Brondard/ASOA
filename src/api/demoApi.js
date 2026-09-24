@@ -71,6 +71,24 @@ export const demoApi = {
     currentId = null
     emit()
   },
+  createGuest: ({ first_name, last_name }) =>
+    upsert('profiles', { first_name, last_name, avatar_url: null, city: null, disciplines: [], is_admin: false, vma: null, approved: true, guest: true }, 'g'),
+  async deleteGuest(id) {
+    removeMember(id)
+  },
+  // Même logique que la fonction SQL link_guest
+  async linkGuest(guestId, accountId) {
+    const g = db.profiles.find((p) => p.id === guestId)
+    const move = (rows, key) => rows.map((r) => (r.member_id === guestId && !rows.some((x) => x.member_id === accountId && x[key] === r[key]) ? { ...r, member_id: accountId } : r))
+    db.results = move(db.results, 'race_id')
+    db.registrations = move(db.registrations, 'race_id')
+    db.attendance = move(db.attendance, 'session_id')
+    db.profiles = db.profiles.map((p) => (p.id !== accountId ? p : {
+      ...p, approved: true, city: p.city || g.city, disciplines: p.disciplines.length ? p.disciplines : g.disciplines,
+      vma: p.vma ?? g.vma, avatar_url: p.avatar_url ?? g.avatar_url,
+    }))
+    removeMember(guestId)
+  },
   myEmail: async () => (currentId ? `${currentId}@demo.asoa` : null),
   async uploadAvatar(file) {
     return new Promise((res) => {

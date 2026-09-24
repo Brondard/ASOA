@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { api } from '../api/index.js'
 import { CLUB } from '../config.js'
+import { download } from '../lib/download.js'
 import { fmtTime } from '../lib/format.js'
 import { useData } from '../store.jsx'
 import { ConfirmDelete, Icon, Logo, PageHead, Sheet } from '../ui.jsx'
@@ -47,6 +48,11 @@ export default function Privacy({ standalone }) {
           <li><strong>Ta vie au club</strong> : tes réponses aux séances, tes inscriptions aux courses, tes résultats (temps, classement, podium).</li>
           <li><strong>Les notifications</strong>, si tu les actives : un identifiant technique de ton appareil.</li>
         </ul>
+        <p>
+          Pour un adhérent qui n'a pas de compte, un coach peut créer une fiche avec son nom et ses résultats,
+          pour qu'il figure au challenge. Cette personne peut demander à un coach de la supprimer, ou la récupérer
+          en créant son compte.
+        </p>
 
         <h2>Pourquoi ?</h2>
         <p>
@@ -169,12 +175,7 @@ async function exportMyData({ me, sessions, races, results, attendance, registra
       podium: r.podium, commentaire: r.note,
     })),
   }
-  const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }))
-  const a = Object.assign(document.createElement('a'), { href: url, download: 'asoa-mes-donnees.json' })
-  document.body.append(a)
-  a.click()
-  a.remove()
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
+  download('asoa-mes-donnees.json', JSON.stringify(data, null, 2), 'application/json')
 }
 
 // Écran d'un compte créé mais pas encore validé par un coach
