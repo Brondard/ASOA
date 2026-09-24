@@ -18,6 +18,14 @@ function upsert(table, row, prefix) {
   return wait(created)
 }
 
+// Même effet que la cascade SQL de la vraie base
+function removeMember(id) {
+  db.profiles = db.profiles.filter((p) => p.id !== id)
+  db.results = db.results.filter((x) => x.member_id !== id)
+  db.attendance = db.attendance.filter((x) => x.member_id !== id)
+  db.registrations = db.registrations.filter((x) => x.member_id !== id)
+}
+
 export const demoApi = {
   isDemo: true,
 
@@ -38,7 +46,7 @@ export const demoApi = {
     throw new Error('Mode démo : pas d\'envoi d\'e-mail.')
   },
   demoSignIn(role) {
-    currentId = role === 'admin' ? 'm-000' : 'm-001'
+    currentId = { admin: 'm-000', pending: 'm-900' }[role] || 'm-001'
     emit()
   },
   async updatePassword() {},
@@ -50,6 +58,20 @@ export const demoApi = {
   listProfiles: () => wait(db.profiles),
   updateProfile: (id, patch) => upsert('profiles', { id, ...patch }),
   setCoach: (id, value) => upsert('profiles', { id, is_admin: value }),
+  approveMember: (id) => upsert('profiles', { id, approved: true }),
+  async refuseMember(id) {
+    removeMember(id)
+  },
+  async deleteMyAccount(id) {
+    const p = db.profiles.find((x) => x.id === id)
+    if (p?.is_admin && db.profiles.filter((x) => x.is_admin).length === 1) {
+      throw new Error('Tu es le seul coach : nomme un autre coach avant de supprimer ton compte.')
+    }
+    removeMember(id)
+    currentId = null
+    emit()
+  },
+  myEmail: async () => (currentId ? `${currentId}@demo.asoa` : null),
   async uploadAvatar(file) {
     return new Promise((res) => {
       const r = new FileReader()

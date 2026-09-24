@@ -6,6 +6,8 @@ export const CLUB = {
   shortName: 'ASOA',
   fullName: 'ASOA Antibes',
   city: 'Antibes',
+  // E-mail affiché sur la page « Tes données » pour les questions RGPD (vide = « parles-en à un coach »)
+  privacyContact: '',
 }
 
 export const DISCIPLINES = {

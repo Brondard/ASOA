@@ -25,6 +25,7 @@ npm run build:demo   # build d'un seul fichier HTML -> dist-demo/ (démo hors li
 ```
 src/
   main.jsx, App.jsx      Routage par hash : #/seances #/courses/<id> #/challenge #/membres/<id> #/profil
+                         #/coachs (coachs seulement) #/confidentialite (accessible même déconnecté)
   store.jsx              Contexte unique : charge TOUT au démarrage, expose { me, profiles, sessions,
                          races, results, attendance, registrations, isAdmin, run, setAttendance,
                          setRegistration, notify, reload }
@@ -32,7 +33,8 @@ src/
   api/supabaseApi.js     Vraie base. Toutes les requêtes passent par ici, jamais depuis un écran.
   api/demoApi.js         Même interface, en mémoire (mode démo)
   api/demoData.js        Jeu de données fictif (noms inventés)
-  screens/               Sessions, Races, Challenge, Members, Coaches (gestion des rôles), Login
+  screens/               Sessions, Races, Challenge, Members, Coaches (rôles + validation des inscrits),
+                         Privacy (page RGPD, export, suppression de compte, écran « en attente »), Login
   lib/                   format (dates/temps), challenge, events (épreuves/formats), records, badges, vma, push
   ui.jsx                 Icônes SVG inline, Avatar, Sheet, Field, PageHead, Logo, ConfirmDelete
   assets/                logo.png (bandeau détouré) + logo-square.jpg
@@ -56,7 +58,7 @@ supabase/
 
 | Table | Rôle |
 |---|---|
-| `profiles` | 1 par compte : prénom, nom, photo, ville, disciplines[], `is_admin`, `vma` |
+| `profiles` | 1 par compte : prénom, nom, photo, ville, disciplines[], `is_admin`, `vma`, `approved` (validé par un coach) |
 | `sessions` | séances : date/heure, discipline, titre, description, lieu (+lat/lng), `min_participants`, `cancelled`, `cancel_reason` |
 | `session_attendance` | (session, membre) → `yes` / `maybe` / `no` |
 | `races` | courses ET épreuves : `parent_id` non nul = c'est un **format** d'une épreuve. Une épreuve porte les infos communes, ses formats portent `format` + `distance_km` |
@@ -64,9 +66,17 @@ supabase/
 | `results` | (course, membre) : `time_seconds` (null = abandon), `rank_overall`, `finishers`, `podium` 1-3 |
 | `push_subscriptions` | 1 par appareil abonné aux notifications |
 
-**RLS** : lecture pour tout adhérent connecté ; écriture séances/courses/résultats réservée aux `is_admin` ;
+**RLS** : lecture réservée aux comptes validés (`is_member()` = `approved` ou coach) ; un compte en attente
+ne voit que son propre profil. Écriture séances/courses/résultats réservée aux `is_admin` ;
 chacun gère son profil, ses présences, ses inscriptions et ses abonnements push.
-Un trigger empêche un adhérent de se donner `is_admin` depuis l'app (mais pas depuis le dashboard Supabase).
+Un trigger empêche un adhérent de changer `is_admin` ou `approved` depuis l'app (mais pas depuis le dashboard Supabase).
+
+**Validation des inscrits** : nouveau compte = `approved = false` → écran « en attente », aucune donnée chargée.
+Côté client, `store.profiles` ne contient que les membres validés, `store.pending` les comptes à valider
+(affichés seulement dans l'onglet Coachs, avec une pastille). Refuser = supprimer le compte (RPC `refuse_member`).
+
+**Suppression de compte** : RPC `delete_my_account` (supprime `auth.users`, tout le reste suit en cascade) ;
+la photo est retirée du Storage par l'app juste avant. Refusé pour le dernier coach.
 
 **Rôles** : seulement deux, adhérent et coach (`is_admin`). Pas de distinction coach/admin, c'est voulu.
 Un coach nomme ou retire les autres coachs depuis l'onglet **Coachs** (`#/coachs`, visible des seuls coachs, `api.setCoach`).
@@ -89,7 +99,8 @@ Le tout premier coach se nomme en SQL : `update profiles set is_admin = true whe
 
 ## État de l'infrastructure (au 24 septembre 2026)
 
-- Base Supabase en place ; migrations v2 et v3 passées, **v4 (VMA) à lancer** si ce n'est pas déjà fait.
+- Base Supabase en place (région Paris, eu-west-3) ; migrations v2 et v3 passées, **v4 (VMA) et v5 (validation + RGPD) à lancer**
+  si ce n'est pas déjà fait. `isMember()` du store laisse passer tout le monde tant que la colonne `approved` n'existe pas.
 - **E-mails désactivés.** Un essai avec Brevo a échoué et le SMTP a été désactivé. Dans Supabase,
   « Confirm email » est décoché pour que les inscriptions marchent sans e-mail.
   Blocage : le club a bien le domaine `asoa-antibes.fr` (site IONOS MyWebsite), mais les accès DNS et
@@ -111,7 +122,10 @@ Le tout premier coach se nomme en SQL : `update profiles set is_admin = true whe
 
 Fil d'actualité du club, covoiturage vers les courses, ajout au calendrier, page publique de présentation
 pour recruter, photos par course, intégration Strava, km-effort en trail (distance + D+/100),
-adhérents sans compte saisis par le coach, code d'accès du club à l'inscription.
+adhérents sans compte saisis par le coach, séances récurrentes, résultats proposés par l'adhérent,
+suppression par un coach d'un adhérent qui a quitté le club.
+Écartés (réponse de l'utilisateur, 24/09/2026) : fil d'actu et photos (le club utilise Instagram),
+gestion des adhésions, appel aux séances (le « je viens » sert d'ordre d'idée).
 
 ## Style de travail attendu
 

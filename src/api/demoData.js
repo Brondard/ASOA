@@ -198,5 +198,12 @@ export function buildDemo() {
     ;['m-001', 'm-000', 'm-004', 'm-008', 'm-012'].forEach((m) => attendance.push({ session_id: id, member_id: m, status: 'yes' }))
   }
 
+  // Deux inscriptions en attente de validation par un coach
+  profiles.forEach((p) => { p.approved = true })
+  profiles.push(
+    { id: 'm-900', first_name: 'Gaëlle', last_name: 'Nouveau', avatar_url: null, city: 'Antibes', disciplines: ['running'], is_admin: false, vma: null, approved: false },
+    { id: 'm-901', first_name: 'Bruno', last_name: 'Inconnu', avatar_url: null, city: null, disciplines: [], is_admin: false, vma: null, approved: false },
+  )
+
   return { profiles, races, results, sessions, attendance, registrations }
 }
