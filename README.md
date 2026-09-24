@@ -49,6 +49,13 @@ Dans **SQL Editor**, lance `supabase/upgrade-v3.sql`. Il ajoute la colonne qui r
 
 Dans **SQL Editor**, lance `supabase/upgrade-v4.sql` : il ajoute la VMA sur la fiche des adhérents.
 
+## 2 bis 4. Passer à la v5 (validation des comptes, RGPD)
+
+Dans **SQL Editor**, lance `supabase/upgrade-v5.sql`. Les comptes existants sont validés d'office ;
+les nouveaux inscrits attendent qu'un coach les valide (onglet **Coachs**) avant de voir quoi que ce soit.
+Il ajoute aussi la suppression de compte par l'adhérent lui-même (page « Tes données »).
+Lance-le **avant** de mettre en ligne la nouvelle version de l'app.
+
 ## 2 ter. Notifications push
 
 Trois morceaux : des clés de chiffrement, la fonction qui envoie, et le rappel quotidien.
@@ -194,6 +201,7 @@ supabase/schema.sql      tables, sécurité, stockage des photos (installation c
 supabase/upgrade-v2.sql  mise à jour v1 -> v2
 supabase/upgrade-v3.sql  mise à jour v2 -> v3 (formats multiples)
 supabase/upgrade-v4.sql  mise à jour v3 -> v4 (VMA)
+supabase/upgrade-v5.sql  mise à jour v4 -> v5 (validation des comptes, suppression de compte)
 supabase/cron-rappels.sql rappels quotidiens
 supabase/functions/notify/ envoi des notifications push
 supabase/emails/          modèles d'e-mails (confirmation, invitation, mot de passe…)

@@ -51,6 +51,7 @@ export default function Login() {
             <input id="l-pass" type="password" required minLength={6} value={f.password} onChange={set('password')} autoComplete={mode === 'up' ? 'new-password' : 'current-password'} />
           </Field>
         )}
+        {mode === 'up' && <p className="hint">Un coach validera ton compte pour vérifier que tu fais partie du club.</p>}
         {msg && <p className={msg.ok ? 'form-ok' : 'form-error'}>{msg.text}</p>}
         <button className="btn btn-primary" type="submit" disabled={busy}>
           {busy ? '…' : mode === 'up' ? 'Créer mon compte' : mode === 'reset' ? 'Envoyer le lien' : 'Se connecter'}
@@ -62,6 +63,8 @@ export default function Login() {
         </div>
       </form>
 
+      <a className="login-privacy" href="#/confidentialite">Données personnelles et confidentialité</a>
+
       {api.isDemo && (
         <div className="demo-box">
           <p><strong>Mode démo</strong> — données fictives, rien n'est enregistré.</p>
@@ -69,6 +72,7 @@ export default function Login() {
             <button className="btn btn-dark" onClick={() => api.demoSignIn('member')}>Démo adhérent</button>
             <button className="btn btn-dark" onClick={() => api.demoSignIn('admin')}>Démo coach</button>
           </div>
+          <button className="link-btn" onClick={() => api.demoSignIn('pending')}>Démo nouvel inscrit (compte à valider)</button>
         </div>
       )}
     </div>

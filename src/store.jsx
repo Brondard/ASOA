@@ -4,8 +4,12 @@ import { api } from './api/index.js'
 const Ctx = createContext(null)
 export const useData = () => useContext(Ctx)
 
+const EMPTY = { ready: false, me: null, profiles: [], pending: [], sessions: [], races: [], results: [], attendance: [], registrations: [] }
+// approved absent = migration v5 pas encore passée : on ne bloque personne
+export const isMember = (p) => !!p && (p.approved !== false || p.is_admin)
+
 export function DataProvider({ children }) {
-  const [state, setState] = useState({ ready: false, me: null, profiles: [], sessions: [], races: [], results: [], attendance: [], registrations: [] })
+  const [state, setState] = useState(EMPTY)
   const [toast, setToast] = useState(null)
   // Arrivée depuis le lien « mot de passe oublié » : on demande le nouveau mot de passe
   const [recovery, setRecovery] = useState(() => /type=(recovery|invite)/.test(window.location.hash))
@@ -14,11 +18,16 @@ export function DataProvider({ children }) {
     try {
       const me = await api.currentUser()
       if (!me) return setState((s) => ({ ...s, ready: true, me: null }))
-      const [profiles, sessions, races, results, attendance, registrations] = await Promise.all([
+      // Compte pas encore validé : la base ne lui renvoie rien, inutile de charger
+      if (!isMember(me)) return setState({ ...EMPTY, ready: true, me })
+      const [all, sessions, races, results, attendance, registrations] = await Promise.all([
         api.listProfiles(), api.listSessions(), api.listRaces(), api.listResults(),
         api.listAttendance(), api.listRegistrations(),
       ])
-      setState({ ready: true, me, profiles, sessions, races, results, attendance, registrations })
+      // Les comptes en attente n'apparaissent nulle part, sauf dans l'onglet Coachs
+      const profiles = all.filter(isMember)
+      const pending = all.filter((p) => !isMember(p))
+      setState({ ready: true, me, profiles, pending, sessions, races, results, attendance, registrations })
     } catch (e) {
       setState((s) => ({ ...s, ready: true }))
       setToast({ text: e.message, error: true })

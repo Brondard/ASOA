@@ -32,6 +32,12 @@ async function fetchAll(build) {
   }
 }
 
+// Photos de profil d'un compte (dossier <id>/ du bucket avatars)
+async function removeAvatars(userId) {
+  const files = ok(await sb().storage.from('avatars').list(userId))
+  if (files.length) ok(await sb().storage.from('avatars').remove(files.map((f) => `${userId}/${f.name}`)))
+}
+
 // Retire les champs vides/non persistés avant écriture
 const clean = (row) => {
   const out = { ...row }
@@ -79,6 +85,25 @@ export const supabaseApi = {
     const row = ok(await sb().from('profiles').update({ is_admin: value }).eq('id', id).select().single())
     if (row.is_admin !== value) throw new Error('Action réservée aux coachs.')
     return row
+  },
+  async approveMember(id) {
+    const row = ok(await sb().from('profiles').update({ approved: true }).eq('id', id).select().single())
+    if (!row.approved) throw new Error('Action réservée aux coachs.')
+    return row
+  },
+  // Refus d'une inscription en attente : photo puis compte (cascade sur tout le reste)
+  async refuseMember(id) {
+    await removeAvatars(id)
+    ok(await sb().rpc('refuse_member', { p_id: id }))
+  },
+  async deleteMyAccount(id) {
+    await removeAvatars(id)
+    ok(await sb().rpc('delete_my_account'))
+    await sb().auth.signOut({ scope: 'local' })
+  },
+  async myEmail() {
+    const { data } = await sb().auth.getSession()
+    return data.session?.user?.email || null
   },
   async uploadAvatar(file, userId) {
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()

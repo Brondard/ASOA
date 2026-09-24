@@ -90,6 +90,15 @@ async function daily() {
     const going = ((await db.from('race_registrations').select('member_id').eq('race_id', r.id).eq('status', 'going')).data || []).map((x) => x.member_id)
     sent += await send(going, { title: `J-7 : ${r.name}`, body: `Plus qu'une semaine ! ${going.length} ASOA au départ.`, url: link(`courses/${r.id}`) })
   }
+  // Inscriptions en attente de validation : rappel aux coachs
+  const { data: waiting } = await db.from('profiles').select('id').eq('approved', false).eq('is_admin', false)
+  if (waiting?.length) {
+    sent += await send((admins || []).map((a) => a.id), {
+      title: 'Inscriptions à valider',
+      body: `${waiting.length} compte${waiting.length > 1 ? 's attendent' : ' attend'} ta validation.`,
+      url: link('coachs'), tag: 'pending',
+    })
+  }
   return sent
 }
 

@@ -163,6 +163,7 @@ export function MemberDetail({ id, self }) {
       {self && (
         <div className="signout">
           <button className="btn btn-ghost" onClick={() => api.signOut()}><Icon name="logout" size={18} /> Se déconnecter</button>
+          <a className="btn btn-ghost" href="#/confidentialite">Mes données</a>
           {api.isDemo && <button className="btn btn-ghost" onClick={() => { api.signOut(); api.demoSignIn(me.is_admin ? 'member' : 'admin') }}>Passer en vue {me.is_admin ? 'adhérent' : 'coach'}</button>}
         </div>
       )}
