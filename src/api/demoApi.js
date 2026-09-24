@@ -49,6 +49,7 @@ export const demoApi = {
 
   listProfiles: () => wait(db.profiles),
   updateProfile: (id, patch) => upsert('profiles', { id, ...patch }),
+  setCoach: (id, value) => upsert('profiles', { id, is_admin: value }),
   async uploadAvatar(file) {
     return new Promise((res) => {
       const r = new FileReader()

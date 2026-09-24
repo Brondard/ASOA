@@ -23,6 +23,7 @@ const paths = {
   logout: <path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h11" />,
   camera: <><path d="M4 8h3l2-3h6l2 3h3v11H4V8Z" /><circle cx="12" cy="13" r="3.5" /></>,
   chevron: <path d="m9 6 6 6-6 6" />,
+  shield: <><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.2 7.5 9.5 4.3-1.3 7.5-4.9 7.5-9.5V6L12 3Z" /><path d="m9 12 2 2 4-4" /></>,
   bell: <><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15L6 16Z" /><path d="M10 20.5a2 2 0 0 0 4 0" /></>,
 }
 export const Icon = ({ name, size = 20 }) => (

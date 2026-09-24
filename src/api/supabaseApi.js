@@ -74,6 +74,12 @@ export const supabaseApi = {
 
   listProfiles: async () => ok(await sb().from('profiles').select('*').order('last_name')),
   updateProfile: async (id, patch) => ok(await sb().from('profiles').update(patch).eq('id', id).select().single()),
+  // Le trigger protect_admin_flag annule le changement sans erreur si on n'est pas coach : on vérifie
+  async setCoach(id, value) {
+    const row = ok(await sb().from('profiles').update({ is_admin: value }).eq('id', id).select().single())
+    if (row.is_admin !== value) throw new Error('Action réservée aux coachs.')
+    return row
+  },
   async uploadAvatar(file, userId) {
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
     const path = `${userId}/avatar-${Date.now()}.${ext}`
