@@ -7,7 +7,7 @@ import { useData } from '../store.jsx'
 import { ConfirmDelete, Icon, Logo, PageHead, Sheet } from '../ui.jsx'
 
 // Date à changer à chaque modification du texte ci-dessous
-const UPDATED = '24 septembre 2026'
+const UPDATED = '27 septembre 2026'
 
 // Page « Données personnelles », lisible même sans être connecté (lien depuis l'écran de connexion)
 export default function Privacy({ standalone }) {
@@ -44,7 +44,7 @@ export default function Privacy({ standalone }) {
         <h2>Ce que l'app enregistre</h2>
         <ul>
           <li><strong>Ton compte</strong> : e-mail et mot de passe (chiffré, personne ne peut le lire).</li>
-          <li><strong>Ton profil</strong> : prénom, nom, et si tu les renseignes : photo, ville, disciplines, VMA.</li>
+          <li><strong>Ton profil</strong> : prénom, nom, et si tu les renseignes : photo, ville, disciplines, VMA et date du test.</li>
           <li><strong>Ta vie au club</strong> : tes réponses aux séances, tes inscriptions aux courses, tes résultats (temps, classement, podium).</li>
           <li><strong>Les notifications</strong>, si tu les actives : un identifiant technique de ton appareil.</li>
         </ul>
@@ -161,7 +161,7 @@ async function exportMyData({ me, sessions, races, results, attendance, registra
     compte: { email },
     profil: {
       prenom: me.first_name, nom: me.last_name, ville: me.city, disciplines: me.disciplines,
-      vma: me.vma, photo: me.avatar_url, coach: me.is_admin, compte_valide: me.approved ?? true,
+      vma: me.vma, vma_date_test: me.vma_date, photo: me.avatar_url, coach: me.is_admin, compte_valide: me.approved ?? true,
     },
     presences_seances: mine(attendance).map((a) => ({
       seance: session[a.session_id]?.title, date: session[a.session_id]?.starts_at, reponse: a.status,

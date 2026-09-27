@@ -62,6 +62,11 @@ Dans **SQL Editor**, lance `supabase/upgrade-v6.sql`, **avant** de mettre en lig
 Il permet à chacun de saisir ses propres résultats, et aux coachs de créer des fiches pour les adhérents
 sans compte (onglet **Coachs** › « Sans compte »), reliées plus tard à leur compte s'ils s'inscrivent.
 
+## 2 bis 6. Passer à la v7 (« Pas dispo » sur les courses, date du test de VMA)
+
+Dans **SQL Editor**, lance `supabase/upgrade-v7.sql`, **avant** de mettre en ligne la nouvelle version de l'app
+(sinon l'enregistrement des profils échoue : l'app envoie la date du test de VMA, que la base ne connaît pas encore).
+
 ## 2 ter. Notifications push
 
 Trois morceaux : des clés de chiffrement, la fonction qui envoie, et le rappel quotidien.
@@ -209,6 +214,7 @@ supabase/upgrade-v3.sql  mise à jour v2 -> v3 (formats multiples)
 supabase/upgrade-v4.sql  mise à jour v3 -> v4 (VMA)
 supabase/upgrade-v5.sql  mise à jour v4 -> v5 (validation des comptes, suppression de compte)
 supabase/upgrade-v6.sql  mise à jour v5 -> v6 (résultats par l'adhérent, adhérents sans compte)
+supabase/upgrade-v7.sql  mise à jour v6 -> v7 (« Pas dispo » sur les courses, date du test de VMA)
 supabase/cron-rappels.sql rappels quotidiens
 supabase/functions/notify/ envoi des notifications push
 supabase/emails/          modèles d'e-mails (confirmation, invitation, mot de passe…)

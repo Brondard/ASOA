@@ -200,6 +200,13 @@ export function buildDemo() {
 
   // Deux inscriptions en attente de validation par un coach
   profiles.forEach((p) => { p.approved = true })
+  // Date du test de VMA : de 0 à 19 mois, pour avoir des tests récents et d'autres « à refaire »
+  profiles.forEach((p, i) => {
+    if (!p.vma || i % 5 === 4) return
+    const d = new Date()
+    d.setMonth(d.getMonth() - ((i * 3) % 20))
+    p.vma_date = d.toLocaleDateString('sv-SE')
+  })
   profiles.push(
     { id: 'm-900', first_name: 'Gaëlle', last_name: 'Nouveau', avatar_url: null, city: 'Antibes', disciplines: ['running'], is_admin: false, vma: null, approved: false },
     { id: 'm-901', first_name: 'Bruno', last_name: 'Inconnu', avatar_url: null, city: null, disciplines: [], is_admin: false, vma: null, approved: false },

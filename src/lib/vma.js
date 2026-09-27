@@ -16,3 +16,8 @@ export const VMA_ZONES = [
   { pct: 90, label: '90 % — seuil' },
   { pct: 75, label: '75 % — endurance' },
 ]
+
+// Date du test de VMA : au-delà d'un an, la VMA n'est sans doute plus à jour
+export const vmaIsOld = (date) => !!date && (Date.now() - new Date(date + 'T12:00:00')) / 864e5 > 365
+export const vmaTestMonth = (date) =>
+  date ? new Intl.DateTimeFormat('fr-FR', { month: 'short', year: 'numeric' }).format(new Date(date + 'T12:00:00')) : null

@@ -45,6 +45,7 @@ export const hour = (d) => f({ hour: '2-digit', minute: '2-digit' }).format(new 
 export const longDate = (d) => f({ weekday: 'long', day: 'numeric', month: 'long' }).format(new Date(d))
 export const fullDate = (d) => f({ day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(d))
 
+export const todayISO = () => new Date().toLocaleDateString('sv-SE') // AAAA-MM-JJ en heure locale
 export const km = (n) => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(n)
 
 // Saison sportive : "2025-2026" pour une date entre sept. 2025 et août 2026

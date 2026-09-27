@@ -4,7 +4,7 @@ import { DISCIPLINES, USUAL_PLACES } from '../config.js'
 import { addSessionToCalendar } from '../lib/calendar.js'
 import { dayName, dayNum, fullName, hour, longDate, mapsUrl, monthShort, toLocalInput } from '../lib/format.js'
 import { enablePush, pushState } from '../lib/push.js'
-import { fmtVma, paceAt } from '../lib/vma.js'
+import { fmtVma, paceAt, vmaIsOld, vmaTestMonth } from '../lib/vma.js'
 import { go, useData } from '../store.jsx'
 import { Avatar, ConfirmDelete, DiscChip, Empty, Field, Icon, PageHead, Sheet } from '../ui.jsx'
 
@@ -200,7 +200,7 @@ function WhoComes({ s, onClose }) {
               <Avatar p={p} size={32} />
               <span className="who-name">{fullName(p)}</span>
               {p.vma
-                ? <span className="vma-tag">{fmtVma(p.vma)}<small>{paceAt(p.vma)}/km</small></span>
+                ? <span className={`vma-tag ${vmaIsOld(p.vma_date) ? 'old' : ''}`}>{fmtVma(p.vma)}<small>{paceAt(p.vma)}/km{p.vma_date && ` · ${vmaTestMonth(p.vma_date)}`}</small></span>
                 : isAdmin && <span className="vma-tag empty">VMA ?</span>}
             </li>
           ))}</ul>

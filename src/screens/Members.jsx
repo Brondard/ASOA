@@ -2,14 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api/index.js'
 import { CLUB, DISCIPLINES } from '../config.js'
 import { standings } from '../lib/challenge.js'
-import { fmtTime, fullDate, fullName, km, seasonOf } from '../lib/format.js'
+import { fmtTime, fullDate, fullName, km, seasonOf, todayISO } from '../lib/format.js'
 import { go, useData } from '../store.jsx'
 import { Avatar, DiscChip, Empty, Field, Icon, PageHead, Sheet } from '../ui.jsx'
 import { Medal } from './Races.jsx'
 import { badgesFor } from '../lib/badges.js'
 import { RECORD_DISTANCES, personalRecords } from '../lib/records.js'
 import { disablePush, enablePush, isIOS, pushState } from '../lib/push.js'
-import { VMA_ZONES, fmtVma, paceAt } from '../lib/vma.js'
+import { VMA_ZONES, fmtVma, paceAt, vmaIsOld } from '../lib/vma.js'
 
 export default function Members() {
   const { profiles } = useData()
@@ -95,6 +95,9 @@ export function MemberDetail({ id, self }) {
             <span className="vma-value">{fmtVma(p.vma)}<small>VMA</small></span>
             {canEdit && <button className="link-btn" onClick={() => setEdit(true)}>Mettre à jour</button>}
           </div>
+          <p className={`vma-date ${vmaIsOld(p.vma_date) ? 'old' : ''}`}>
+            {p.vma_date ? <>Test du {fullDate(p.vma_date)}{vmaIsOld(p.vma_date) && " · plus d'un an, à refaire ?"}</> : 'Date du test non renseignée'}
+          </p>
           <ul className="vma-zones">
             {VMA_ZONES.map((z) => <li key={z.pct}><strong>{paceAt(p.vma, z.pct)}</strong><small>{z.label}</small></li>)}
           </ul>
@@ -220,7 +223,9 @@ function PushSettings() {
 
 function ProfileForm({ p, onClose }) {
   const { run, me } = useData()
-  const [f, setF] = useState({ first_name: p.first_name, last_name: p.last_name, city: p.city || '', disciplines: p.disciplines || [], avatar_url: p.avatar_url, vma: p.vma ?? '' })
+  const [f, setF] = useState({ first_name: p.first_name, last_name: p.last_name, city: p.city || '', disciplines: p.disciplines || [], avatar_url: p.avatar_url, vma: p.vma ?? '', vma_date: p.vma_date ?? '' })
+  // Nouvelle VMA sans date choisie : on suppose que le test vient d'avoir lieu
+  const [dateTouched, setDateTouched] = useState(false)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const file = useRef()
@@ -237,8 +242,10 @@ function ProfileForm({ p, onClose }) {
     e.preventDefault()
     const vma = String(f.vma).replace(',', '.').trim()
     if (vma && (isNaN(Number(vma)) || Number(vma) < 5 || Number(vma) > 30)) return setErr('VMA attendue entre 5 et 30 km/h.')
+    if (f.vma_date > todayISO()) return setErr('La date du test ne peut pas être dans le futur.')
     setErr('')
-    if (await run(() => api.updateProfile(p.id, { ...f, vma: vma ? Number(vma) : null }), 'Profil mis à jour')) onClose()
+    const patch = { ...f, vma: vma ? Number(vma) : null, vma_date: vma && f.vma_date ? f.vma_date : null }
+    if (await run(() => api.updateProfile(p.id, patch), 'Profil mis à jour')) onClose()
   }
   return (
     <Sheet title={p.id === me.id ? 'Mon profil' : `Profil de ${p.first_name}`} onClose={onClose}>
@@ -254,11 +261,18 @@ function ProfileForm({ p, onClose }) {
           <Field label="Prénom"><input id="p-first" required value={f.first_name} onChange={(e) => setF({ ...f, first_name: e.target.value })} /></Field>
           <Field label="Nom"><input id="p-last" required value={f.last_name} onChange={(e) => setF({ ...f, last_name: e.target.value })} /></Field>
         </div>
+        <Field label="Ville"><input id="p-city" value={f.city} onChange={(e) => setF({ ...f, city: e.target.value })} /></Field>
         <div className="row2">
-          <Field label="Ville"><input id="p-city" value={f.city} onChange={(e) => setF({ ...f, city: e.target.value })} /></Field>
           <Field label="VMA (km/h)" hint={f.vma ? `100 % = ${paceAt(Number(String(f.vma).replace(',', '.')))}/km` : 'Optionnel, ex. 16,5'}>
-            <input id="p-vma" inputMode="decimal" value={f.vma} onChange={(e) => setF({ ...f, vma: e.target.value })} placeholder="16,5" />
+            <input id="p-vma" inputMode="decimal" value={f.vma} placeholder="16,5"
+              onChange={(e) => setF({ ...f, vma: e.target.value, vma_date: dateTouched ? f.vma_date : todayISO() })} />
           </Field>
+          {String(f.vma).trim() !== '' && (
+            <Field label="Date du test">
+              <input id="p-vma-date" type="date" max={todayISO()} value={f.vma_date}
+                onChange={(e) => { setDateTouched(true); setF({ ...f, vma_date: e.target.value }) }} />
+            </Field>
+          )}
         </div>
         <Field label="Disciplines pratiquées">
           <div className="segmented small multi">

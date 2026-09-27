@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { api } from '../api/index.js'
 import { DISCIPLINES } from '../config.js'
-import { fmtTime, fullDate, fullName, km, maskTime, pace, parseTime, seasonOf } from '../lib/format.js'
+import { fmtTime, fullDate, fullName, km, maskTime, pace, parseTime, seasonOf, todayISO } from '../lib/format.js'
 import { eventOf, formatsOf, isEvent, labelOf, leafRaces, legsOf, topRaces } from '../lib/events.js'
 import { addRaceToCalendar } from '../lib/calendar.js'
 import { recordBreakers } from '../lib/records.js'
@@ -10,7 +10,6 @@ import { Avatar, ConfirmDelete, DiscChip, Empty, Field, Icon, PageHead, Sheet } 
 
 export const Medal = ({ n }) => (n ? <span className={`medal medal-${n}`} title={`Podium catégorie : ${n}e`}>{n}</span> : null)
 
-const todayISO = () => new Date().toLocaleDateString('sv-SE') // AAAA-MM-JJ en heure locale
 export const isUpcoming = (r) => r.race_date >= todayISO()
 export const daysTo = (d) => Math.round((new Date(d + 'T12:00:00') - new Date(todayISO() + 'T12:00:00')) / 864e5)
 
@@ -45,7 +44,7 @@ export default function Races() {
   // À venir : une carte par épreuve (tous formats confondus)
   const upcoming = useMemo(() => topRaces(races)
     .filter((r) => isUpcoming(r) && !legsOf(races, r).some(hasResults))
-    .filter((r) => !mine || legsOf(races, r).some((l) => registrations.some((g) => g.race_id === l.id && g.member_id === me.id)))
+    .filter((r) => !mine || legsOf(races, r).some((l) => registrations.some((g) => g.race_id === l.id && g.member_id === me.id && signedUp(g))))
     .sort((a, b) => (b.is_club_goal - a.is_club_goal) || a.race_date.localeCompare(b.race_date)), [races, results, registrations, mine, me.id])
 
   return (
@@ -102,7 +101,10 @@ export default function Races() {
   )
 }
 
-export const REG = [['going', "J'y vais"], ['interested', 'Intéressé']]
+export const REG = [['going', "J'y vais"], ['interested', 'Intéressé'], ['no', 'Pas dispo']]
+const REG_CLASS = { going: 'yes', interested: 'maybe', no: 'no' }
+// « Pas dispo » est une réponse, pas une inscription : on l'écarte des comptes et des listes d'inscrits
+const signedUp = (g) => g.status !== 'no'
 
 // Inscription sur une épreuve : on choisit d'abord son format s'il y en a plusieurs
 export function RegisterButtons({ race }) {
@@ -132,7 +134,7 @@ export function RegisterButtons({ race }) {
 
   return (
     <div className="signup-controls" onClick={(e) => e.stopPropagation()}>
-      {legs.length > 1 && (
+      {legs.length > 1 && current !== 'no' && (
         <label className="format-pick">
           <span>Format</span>
           <select value={legId} onChange={(e) => changeFormat(e.target.value)}>
@@ -140,9 +142,9 @@ export function RegisterButtons({ race }) {
           </select>
         </label>
       )}
-      <div className="rsvp two" role="group" aria-label="Ta participation">
+      <div className="rsvp" role="group" aria-label="Ta participation">
         {REG.map(([k, label]) => (
-          <button key={k} className={`rsvp-${k === 'going' ? 'yes' : 'maybe'} ${current === k ? 'on' : ''}`} aria-pressed={current === k}
+          <button key={k} className={`rsvp-${REG_CLASS[k]} ${current === k ? 'on' : ''}`} aria-pressed={current === k}
             onClick={() => choose(k)}>{label}</button>
         ))}
       </div>
@@ -188,7 +190,9 @@ function UpcomingCard({ r }) {
         <span className="who-count">
           <strong>{going.length}</strong> ASOA au départ{interested.length > 0 && <small> · {interested.length} intéressé{interested.length > 1 ? 's' : ''}</small>}
         </span>
-        {myLeg && <span className={`min-chip ${mineReg.status === 'going' ? 'ok' : 'short'}`}>{mineReg.status === 'going' ? 'Inscrit' : 'Intéressé'} · {labelOf(myLeg)}</span>}
+        {myLeg && (mineReg.status === 'no'
+          ? <span className="min-chip">Pas dispo</span>
+          : <span className={`min-chip ${mineReg.status === 'going' ? 'ok' : 'short'}`}>{mineReg.status === 'going' ? 'Inscrit' : 'Intéressé'} · {labelOf(myLeg)}</span>)}
       </div>
       <RegisterButtons race={r} />
     </article>
@@ -214,7 +218,7 @@ export function RaceDetail({ id }) {
   const pending = useMemo(() => {
     const done = new Set(results.filter((r) => r.race_id === id).map((r) => r.member_id))
     return registrations
-      .filter((g) => g.race_id === id && !done.has(g.member_id))
+      .filter((g) => g.race_id === id && signedUp(g) && !done.has(g.member_id))
       .sort((a, b) => (a.status === 'going' ? 0 : 1) - (b.status === 'going' ? 0 : 1))
   }, [registrations, results, id])
   if (!race) return <><PageHead back title="Course introuvable" /><Empty>Cette course a peut-être été supprimée.</Empty></>
@@ -224,7 +228,7 @@ export function RaceDetail({ id }) {
   // L'adhérent saisit lui-même son résultat, dès le jour de la course (jamais sur une épreuve à formats)
   const canSelf = formats.length === 0 && race.race_date <= todayISO()
   const myResult = rows.find((r) => r.member_id === me.id)
-  const myFormat = formats.find((f) => registrations.some((g) => g.race_id === f.id && g.member_id === me.id))
+  const myFormat = formats.find((f) => registrations.some((g) => g.race_id === f.id && g.member_id === me.id && signedUp(g)))
 
   return (
     <>
@@ -413,7 +417,7 @@ function BulkResults({ race, pending, onClose }) {
 function EventFormats({ race, formats }) {
   const { registrations, results, profiles, me } = useData()
   const byId = Object.fromEntries(profiles.map((p) => [p.id, p]))
-  const mineReg = registrations.find((g) => g.member_id === me.id && formats.some((f) => f.id === g.race_id))
+  const mineReg = registrations.find((g) => g.member_id === me.id && signedUp(g) && formats.some((f) => f.id === g.race_id))
   const open = isUpcoming(race) && !formats.some((f) => results.some((x) => x.race_id === f.id))
 
   return (
@@ -425,6 +429,7 @@ function EventFormats({ race, formats }) {
         </div>
       )}
       {open && <RegisterButtons race={race} />}
+      {open && <NotComing raceIds={formats.map((f) => f.id)} />}
 
       <ul className="format-list">
         {formats.map((f) => {
@@ -472,7 +477,22 @@ function RaceSignup({ race }) {
           <ul>{l.map((p) => <li key={p.id} onClick={() => go(`membres/${p.id}`)}><Avatar p={p} size={32} /> {fullName(p)}</li>)}</ul>
         </div>
       ))}
+      <NotComing raceIds={[race.id]} />
     </section>
+  )
+}
+
+// Ceux qui ont répondu « Pas dispo » (utile aux coachs pour savoir qui a répondu)
+function NotComing({ raceIds }) {
+  const { registrations, profiles } = useData()
+  const byId = Object.fromEntries(profiles.map((p) => [p.id, p]))
+  const list = registrations.filter((g) => raceIds.includes(g.race_id) && g.status === 'no').map((g) => byId[g.member_id]).filter(Boolean)
+  if (!list.length) return null
+  return (
+    <div className="who-group muted-group">
+      <h3>Pas dispo <small>{list.length}</small></h3>
+      <ul>{list.map((p) => <li key={p.id} onClick={() => go(`membres/${p.id}`)}><Avatar p={p} size={32} /> {fullName(p)}</li>)}</ul>
+    </div>
   )
 }
 

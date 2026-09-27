@@ -85,7 +85,7 @@ export const demoApi = {
     db.attendance = move(db.attendance, 'session_id')
     db.profiles = db.profiles.map((p) => (p.id !== accountId ? p : {
       ...p, approved: true, city: p.city || g.city, disciplines: p.disciplines.length ? p.disciplines : g.disciplines,
-      vma: p.vma ?? g.vma, avatar_url: p.avatar_url ?? g.avatar_url,
+      vma: p.vma ?? g.vma, vma_date: p.vma == null ? g.vma_date : p.vma_date, avatar_url: p.avatar_url ?? g.avatar_url,
     }))
     removeMember(guestId)
   },

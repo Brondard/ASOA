@@ -41,7 +41,7 @@ src/
   assets/                logo.png (bandeau détouré) + logo-square.jpg
 supabase/
   schema.sql             Installation complète (idempotent)
-  upgrade-v2…v6.sql      Migrations successives, à lancer dans l'ordre sur une base existante
+  upgrade-v2…v7.sql      Migrations successives, à lancer dans l'ordre sur une base existante
   cron-rappels.sql       pg_cron + pg_net -> appelle la fonction notify tous les jours
   functions/notify/      Edge Function d'envoi des notifications push
   emails/                Modèles d'e-mails Supabase, générés par build.py
@@ -59,11 +59,11 @@ supabase/
 
 | Table | Rôle |
 |---|---|
-| `profiles` | 1 par adhérent : prénom, nom, photo, ville, disciplines[], `is_admin`, `vma`, `approved` (validé par un coach), `guest` (fiche sans compte) |
+| `profiles` | 1 par adhérent : prénom, nom, photo, ville, disciplines[], `is_admin`, `vma` + `vma_date` (date du test), `approved` (validé par un coach), `guest` (fiche sans compte) |
 | `sessions` | séances : date/heure, discipline, titre, description, lieu (+lat/lng), `min_participants`, `cancelled`, `cancel_reason` |
 | `session_attendance` | (session, membre) → `yes` / `maybe` / `no` |
 | `races` | courses ET épreuves : `parent_id` non nul = c'est un **format** d'une épreuve. Une épreuve porte les infos communes, ses formats portent `format` + `distance_km` |
-| `race_registrations` | (course, membre) → `going` / `interested`. Toujours sur un **format**, jamais sur l'épreuve |
+| `race_registrations` | (course, membre) → `going` / `interested` / `no` (« Pas dispo »). Toujours sur un **format**, jamais sur l'épreuve |
 | `results` | (course, membre) : `time_seconds` (null = abandon), `rank_overall`, `finishers`, `podium` 1-3 |
 | `push_subscriptions` | 1 par appareil abonné aux notifications |
 
@@ -99,7 +99,11 @@ Le tout premier coach se nomme en SQL : `update profiles set is_admin = true whe
 - **Records perso** : meilleur temps sur 5/10/21,1/42,2 km, uniquement discipline `running` (fourchettes dans `lib/records.js`).
   Un résultat qui bat un record précédent affiche « RP ».
 - **Badges** : 16 badges calculés à la volée dans `lib/badges.js` (aucune donnée stockée).
-- **VMA** : saisie par l'adhérent ou par un coach ; allures dérivées à 100/95/90/75 % (`lib/vma.js`).
+- **VMA** : saisie par l'adhérent ou par un coach, avec la date du test (mise à aujourd'hui par défaut quand la VMA change) ;
+  allures dérivées à 100/95/90/75 % (`lib/vma.js`). Test de plus d'un an signalé en orange (profil, liste « qui vient »).
+- **« Pas dispo » sur une course** (demande des coachs) : c'est une réponse, pas une inscription. `signedUp()` dans
+  `Races.jsx` l'écarte des comptes, de « Mes courses », de la saisie groupée des temps et de l'agenda ;
+  la liste « Pas dispo » s'affiche sous les inscrits.
 - **Résultat saisi par l'adhérent** : bouton « Mon résultat » sur une course du jour ou passée ; il peut le corriger ou le supprimer.
 - **Saisie groupée des temps** : dès le jour de la course, le coach voit les inscrits sans résultat et saisit tout d'un coup.
   « Pas couru » sur un inscrit « J'y vais » supprime son inscription.
@@ -109,7 +113,7 @@ Le tout premier coach se nomme en SQL : `update profiles set is_admin = true whe
 ## État de l'infrastructure (au 24 septembre 2026)
 
 - Base Supabase en place (région Paris, eu-west-3) ; migrations v2 à v5 passées, app en ligne depuis le 24/09/2026
-  (les coachs ont un accès et testent). **v6 (résultats par l'adhérent, fiches sans compte) à lancer.**
+  (les coachs ont un accès et testent). **v6 puis v7 à lancer** si ce n'est pas déjà fait, avant de déployer la version qui va avec.
 - **E-mails désactivés.** Un essai avec Brevo a échoué et le SMTP a été désactivé. Dans Supabase,
   « Confirm email » est décoché pour que les inscriptions marchent sans e-mail.
   Blocage : le club a bien le domaine `asoa-antibes.fr` (site IONOS MyWebsite), mais les accès DNS et
