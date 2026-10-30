@@ -67,6 +67,40 @@ sans compte (onglet **Coachs** › « Sans compte »), reliées plus tard à leu
 Dans **SQL Editor**, lance `supabase/upgrade-v7.sql`, **avant** de mettre en ligne la nouvelle version de l'app
 (sinon l'enregistrement des profils échoue : l'app envoie la date du test de VMA, que la base ne connaît pas encore).
 
+## 2 bis 7. Passer à la v8 (connexion Google)
+
+Dans **SQL Editor**, lance `supabase/upgrade-v8.sql`. Il met à jour la création automatique du profil
+pour accepter aussi les comptes Google (prénom, nom et photo fournis par Google).
+Ensuite, suis la procédure « Connexion avec un compte Google » juste en dessous.
+
+## 2 quinquies. Connexion avec un compte Google
+
+C'est le moyen le plus simple pour les adhérents : pas de mot de passe à retenir, et **pas d'e-mail de
+confirmation à envoyer**, donc ça fonctionne même tant que le SMTP du club n'est pas en place.
+Comme pour une inscription par e-mail, le compte attend ensuite la **validation d'un coach** (onglet Coachs).
+
+**a. Côté Google** — [console.cloud.google.com](https://console.cloud.google.com) :
+1. Crée un projet (ex. « ASOA »).
+2. **Google Auth Platform → Branding** : nom de l'app « ASOA Antibes », e-mail de contact, logo.
+3. **Audience** : *External*. Tant que l'app est en *Testing*, seuls les comptes que tu ajoutes comme
+   testeurs peuvent se connecter → clique sur **Publish app** avant d'ouvrir aux adhérents.
+4. **Clients → Create client → Web application** :
+   - *Authorized JavaScript origins* : `https://ton-site.vercel.app` (et `http://localhost:5173` pour tes essais)
+   - *Authorized redirect URIs* : l'adresse **de Supabase**, pas celle de l'app :
+     `https://<ID-DU-PROJET>.supabase.co/auth/v1/callback`
+5. Copie le **Client ID** et le **Client secret**.
+
+**b. Côté Supabase** :
+1. **Authentication → Sign In / Providers → Google** : active, colle le Client ID et le Client secret, enregistre.
+2. **Authentication → URL Configuration** : *Site URL* = `https://ton-site.vercel.app`,
+   *Redirect URLs* = `https://ton-site.vercel.app/**` (ajoute `http://localhost:5173/**` pour le développement).
+
+Rien à changer dans le code : le bouton « Continuer avec Google » est déjà sur l'écran de connexion.
+Si Google ne fournit pas de nom (rare), l'app demande prénom et nom à la première connexion.
+
+> Un adhérent qui s'est inscrit par e-mail puis se connecte avec Google **avec la même adresse** retrouve
+> normalement son compte : Supabase relie les deux quand l'adresse est vérifiée des deux côtés.
+
 ## 2 ter. Notifications push
 
 Trois morceaux : des clés de chiffrement, la fonction qui envoie, et le rappel quotidien.
@@ -166,6 +200,34 @@ Tout est dans `src/config.js` :
 
 Couleurs et polices : variables en haut de `src/styles.css`.
 
+## Importer un calendrier de courses
+
+Le coach peut créer les courses d'un coup depuis un agenda, au lieu de les saisir une par une :
+onglet **Courses → icône flèche** (à côté de « + Course »). Trois façons de fournir le calendrier :
+
+| Source | Quand l'utiliser |
+|---|---|
+| **Fichier .ics** | Google Agenda (sur ordinateur) → Paramètres → ton agenda → *Exporter* (tu reçois un .zip à décompresser). Marche toujours. |
+| **Lien du calendrier** | Google Agenda → Paramètres → ton agenda → *Intégrer l'agenda* → « Adresse secrète au format iCal ». Pas besoin de rendre l'agenda public, mais la fonction `ics` doit être déployée (voir plus bas). |
+| **Coller le texte** | Dépannage : on colle le contenu d'un .ics. |
+
+L'app lit les événements et **devine** la discipline et la distance d'après le titre
+(« Semi-marathon de Nice » → course à pied, 21,1 km ; « Trail du Baou - 24 km » → trail, 24 km ;
+« Ironman » → triathlon, 226 km). Tout reste modifiable avant d'importer, ligne par ligne.
+Les courses déjà présentes (même nom, même date) sont signalées et non cochées, donc on peut réimporter
+le même agenda sans créer de doublons. Les événements passés et annulés sont écartés par défaut.
+Une distance est obligatoire : c'est elle qui compte pour le challenge.
+L'import ne déclenche pas de notification (on ne veut pas 20 alertes d'un coup).
+
+Pour l'import par lien, déploie la petite fonction qui va chercher le calendrier
+(le navigateur ne peut pas le faire lui-même, règles CORS) :
+
+```bash
+npx supabase functions deploy ics
+```
+
+Elle est réservée aux coachs et n'accepte que des adresses http(s).
+
 ## Une épreuve, plusieurs formats
 
 Une course comme le marathon de Bologne propose souvent un 10 km, un semi, un 30 km et le marathon.
@@ -215,8 +277,10 @@ supabase/upgrade-v4.sql  mise à jour v3 -> v4 (VMA)
 supabase/upgrade-v5.sql  mise à jour v4 -> v5 (validation des comptes, suppression de compte)
 supabase/upgrade-v6.sql  mise à jour v5 -> v6 (résultats par l'adhérent, adhérents sans compte)
 supabase/upgrade-v7.sql  mise à jour v6 -> v7 (« Pas dispo » sur les courses, date du test de VMA)
+supabase/upgrade-v8.sql  mise à jour v7 -> v8 (connexion Google)
 supabase/cron-rappels.sql rappels quotidiens
 supabase/functions/notify/ envoi des notifications push
+supabase/functions/ics/    lecture d'un calendrier .ics par son lien (import des courses)
 supabase/emails/          modèles d'e-mails (confirmation, invitation, mot de passe…)
 src/sw.js                service worker (hors ligne + réception des notifications)
 src/assets/              logo du club (bandeau + carré)

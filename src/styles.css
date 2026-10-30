@@ -551,3 +551,17 @@ table.results { width: 100%; border-collapse: collapse; font-size: 15px; }
 .vma-date.old { color: var(--warn); font-weight: 600; }
 .vma-tag.old small { color: var(--warn); }
 .muted-group li { opacity: 0.7; }
+
+/* ---------- Connexion Google ---------- */
+.btn-google { background: var(--surface); color: var(--ink); border: 1.5px solid var(--line); }
+.btn-google:hover { background: var(--paper); }
+.or { display: flex; align-items: center; gap: 10px; margin: 0; color: var(--muted); font-size: 13px; }
+.or::before, .or::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+
+/* ---------- Import d'un calendrier ---------- */
+.head-actions { display: flex; align-items: center; gap: 4px; }
+.imp-head { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.imp-head strong { font: 700 17px/1.15 var(--display); text-transform: uppercase; }
+.imp-head small { font-size: 13px; color: var(--muted); }
+.bulk-list .check { align-items: flex-start; min-height: 0; gap: 10px; }
+.bulk-list .check input { margin-top: 3px; }

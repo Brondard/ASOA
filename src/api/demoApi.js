@@ -42,6 +42,9 @@ export const demoApi = {
   async signUp() {
     throw new Error('Mode démo : l\'inscription sera active une fois la base Supabase branchée.')
   },
+  async signInWithGoogle() {
+    throw new Error('Mode démo : la connexion Google sera active une fois la base Supabase branchée.')
+  },
   async resetPassword() {
     throw new Error('Mode démo : pas d\'envoi d\'e-mail.')
   },
@@ -141,6 +144,9 @@ export const demoApi = {
   },
   async savePushSubscription() {},
   async deletePushSubscription() {},
+  async fetchIcs() {
+    throw new Error('Mode démo : importe le fichier .ics ou colle son contenu.')
+  },
   async notify() {
     return { sent: 0, demo: true }
   },

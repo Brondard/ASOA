@@ -7,6 +7,7 @@ import { addRaceToCalendar } from '../lib/calendar.js'
 import { recordBreakers } from '../lib/records.js'
 import { go, useData } from '../store.jsx'
 import { Avatar, ConfirmDelete, DiscChip, Empty, Field, Icon, PageHead, Sheet } from '../ui.jsx'
+import ImportRaces from './ImportRaces.jsx'
 
 export const Medal = ({ n }) => (n ? <span className={`medal medal-${n}`} title={`Podium catégorie : ${n}e`}>{n}</span> : null)
 
@@ -17,6 +18,7 @@ export default function Races() {
   const { races, results, me, isAdmin, registrations } = useData()
   const [mine, setMine] = useState(false)
   const [editing, setEditing] = useState(null)
+  const [importing, setImporting] = useState(false)
 
   const hasResults = (r) => results.some((x) => x.race_id === r.id)
 
@@ -52,7 +54,12 @@ export default function Races() {
       <PageHead
         kicker="Compétitions"
         title="Courses"
-        action={isAdmin && <button className="btn btn-primary" onClick={() => setEditing({})}><Icon name="plus" size={18} /> Course</button>}
+        action={isAdmin && (
+          <span className="head-actions">
+            <button className="icon-btn" onClick={() => setImporting(true)} aria-label="Importer un calendrier de courses" title="Importer un calendrier"><Icon name="download" /></button>
+            <button className="btn btn-primary" onClick={() => setEditing({})}><Icon name="plus" size={18} /> Course</button>
+          </span>
+        )}
       />
       <div className="segmented">
         <button className={!mine ? 'on' : ''} onClick={() => setMine(false)}>Tout le club</button>
@@ -97,6 +104,7 @@ export default function Races() {
       ))}
 
       {editing && <RaceForm initial={editing} onClose={() => setEditing(null)} />}
+      {importing && <ImportRaces onClose={() => setImporting(false)} />}
     </>
   )
 }

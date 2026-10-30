@@ -1,7 +1,7 @@
 import { api } from './api/index.js'
 import Challenge from './screens/Challenge.jsx'
 import Coaches from './screens/Coaches.jsx'
-import Login, { NewPassword } from './screens/Login.jsx'
+import Login, { CompleteProfile, NewPassword } from './screens/Login.jsx'
 import Members, { MemberDetail } from './screens/Members.jsx'
 import Privacy, { Pending } from './screens/Privacy.jsx'
 import Races, { RaceDetail } from './screens/Races.jsx'
@@ -27,6 +27,8 @@ export default function App() {
 
   if (!ready) return <div className="splash"><Logo big /></div>
   if (me && recovery) return <><NewPassword />{toastEl}</>
+  // Compte Google sans nom fourni : on le demande avant tout (le coach doit savoir qui il valide)
+  if (me && !me.first_name && !me.last_name && page !== 'confidentialite') return <><CompleteProfile />{toastEl}</>
   // Hors connexion ou compte en attente : seule la page « Tes données » est accessible
   if (!me || !isMember(me)) {
     if (page === 'confidentialite') {

@@ -68,6 +68,13 @@ export const supabaseApi = {
     }))
     return { needsConfirmation: !data.session }
   },
+  // Connexion avec un compte Google : redirige vers Google puis revient sur l'app
+  async signInWithGoogle() {
+    ok(await sb().auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin, queryParams: { prompt: 'select_account' } },
+    }))
+  },
   async resetPassword(email) {
     ok(await sb().auth.resetPasswordForEmail(email, { redirectTo: window.location.origin }))
   },
@@ -163,6 +170,15 @@ export const supabaseApi = {
   async deletePushSubscription(endpoint) {
     ok(await sb().from('push_subscriptions').delete().eq('endpoint', endpoint))
   },
+  // Récupère un calendrier .ics par son lien (passe par une Edge Function : le navigateur
+  // ne peut pas lire directement l'URL de Google Agenda à cause des règles CORS)
+  async fetchIcs(url) {
+    const { data, error } = await sb().functions.invoke('ics', { body: { url } })
+    if (error) throw new Error("Lien non récupéré : la fonction « ics » n'est pas déployée, ou l'adresse est mauvaise. Tu peux importer le fichier .ics à la place.")
+    if (data?.error) throw new Error(data.error)
+    return data.ics
+  },
+
   // Demande à l'Edge Function "notify" d'envoyer une notification
   async notify(type, id) {
     const { data, error } = await sb().functions.invoke('notify', { body: { type, id } })

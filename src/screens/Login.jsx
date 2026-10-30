@@ -3,12 +3,32 @@ import { api } from '../api/index.js'
 import { useData } from '../store.jsx'
 import { Field, Logo } from '../ui.jsx'
 
+const GoogleG = () => (
+  <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+    <path fill="#4285F4" d="M45.1 24.5c0-1.6-.1-3.2-.4-4.7H24v8.9h11.8c-.5 2.7-2 5-4.4 6.6v5.5h7.1c4.1-3.8 6.6-9.4 6.6-16.3z" />
+    <path fill="#34A853" d="M24 46c5.9 0 10.9-2 14.5-5.2l-7.1-5.5c-2 1.3-4.5 2.1-7.4 2.1-5.7 0-10.5-3.8-12.2-9H4.5v5.7C8.1 41.3 15.5 46 24 46z" />
+    <path fill="#FBBC05" d="M11.8 28.4c-.4-1.3-.7-2.7-.7-4.4s.3-3 .7-4.4v-5.7H4.5C2.9 17.1 2 20.4 2 24s.9 6.9 2.5 10.1l7.3-5.7z" />
+    <path fill="#EA4335" d="M24 10.5c3.2 0 6.1 1.1 8.4 3.3l6.3-6.3C34.9 3.9 29.9 2 24 2 15.5 2 8.1 6.7 4.5 13.9l7.3 5.7c1.7-5.2 6.5-9.1 12.2-9.1z" />
+  </svg>
+)
+
 export default function Login() {
   const [mode, setMode] = useState('in') // in | up | reset
   const [f, setF] = useState({ email: '', password: '', first_name: '', last_name: '' })
   const [msg, setMsg] = useState(null)
   const [busy, setBusy] = useState(false)
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value })
+
+  const google = async () => {
+    setBusy(true)
+    setMsg(null)
+    try {
+      await api.signInWithGoogle() // redirige vers Google
+    } catch (err) {
+      setMsg({ text: err.message })
+      setBusy(false)
+    }
+  }
 
   const submit = async (e) => {
     e.preventDefault()
@@ -39,6 +59,14 @@ export default function Login() {
 
       <form className="form login-card" onSubmit={submit}>
         <h1>{mode === 'up' ? 'Créer mon compte' : mode === 'reset' ? 'Mot de passe oublié' : 'Connexion'}</h1>
+        {mode !== 'reset' && (
+          <>
+            <button type="button" className="btn btn-google" disabled={busy} onClick={google}>
+              <GoogleG /> Continuer avec Google
+            </button>
+            <p className="or"><span>ou avec un e-mail</span></p>
+          </>
+        )}
         {mode === 'up' && (
           <div className="row2">
             <Field label="Prénom"><input id="l-first" required value={f.first_name} onChange={set('first_name')} autoComplete="given-name" /></Field>
@@ -113,6 +141,43 @@ export function NewPassword() {
         </Field>
         {err && <p className="form-error">{err}</p>}
         <button className="btn btn-primary" type="submit" disabled={busy}>{busy ? '…' : 'Enregistrer et entrer'}</button>
+      </form>
+    </div>
+  )
+}
+
+// Premier passage après une connexion Google qui n'a pas fourni de prénom/nom :
+// sans nom, le coach ne saurait pas qui il valide
+export function CompleteProfile() {
+  const { me, reload, setToast } = useData()
+  const [f, setF] = useState({ first_name: me.first_name || '', last_name: me.last_name || '' })
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const submit = async (e) => {
+    e.preventDefault()
+    setBusy(true)
+    try {
+      await api.updateProfile(me.id, { first_name: f.first_name.trim(), last_name: f.last_name.trim() })
+      setToast({ text: 'Bienvenue au club !' })
+      await reload()
+    } catch (e2) {
+      setErr(e2.message)
+      setBusy(false)
+    }
+  }
+  return (
+    <div className="login">
+      <div className="login-hero"><Logo big /><p>Bienvenue</p></div>
+      <form className="form login-card" onSubmit={submit}>
+        <h1>Comment tu t'appelles ?</h1>
+        <p className="field-hint">Ton nom apparaîtra sur les résultats, le trombinoscope et les listes de présence.</p>
+        <div className="row2">
+          <Field label="Prénom"><input id="cp-first" required value={f.first_name} onChange={(e) => setF({ ...f, first_name: e.target.value })} autoComplete="given-name" /></Field>
+          <Field label="Nom"><input id="cp-last" required value={f.last_name} onChange={(e) => setF({ ...f, last_name: e.target.value })} autoComplete="family-name" /></Field>
+        </div>
+        {err && <p className="form-error">{err}</p>}
+        <button className="btn btn-primary" type="submit" disabled={busy}>{busy ? '…' : 'C\'est parti'}</button>
+        <button type="button" className="link-btn" onClick={() => api.signOut()}>Se déconnecter</button>
       </form>
     </div>
   )

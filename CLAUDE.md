@@ -34,16 +34,18 @@ src/
   api/demoApi.js         Même interface, en mémoire (mode démo)
   api/demoData.js        Jeu de données fictif (noms inventés)
   screens/               Sessions, Races, Challenge, Members, Coaches (rôles, validation des inscrits, fiches sans compte),
-                         Privacy (page RGPD, export, suppression de compte, écran « en attente »), Login
+                         Privacy (page RGPD, export, suppression de compte, écran « en attente »),
+                         Login (+ Google, + CompleteProfile), ImportRaces (import d'un calendrier de courses)
   lib/                   format (dates/temps), challenge, events (épreuves/formats), records, badges, vma, push,
-                         calendar (fichiers .ics « Ajouter à mon agenda »), download
+                         calendar (EXPORT : fichiers .ics « Ajouter à mon agenda »), ics (IMPORT : lecture d'un .ics), download
   ui.jsx                 Icônes SVG inline, Avatar, Sheet, Field, PageHead, Logo, ConfirmDelete
   assets/                logo.png (bandeau détouré) + logo-square.jpg
 supabase/
   schema.sql             Installation complète (idempotent)
-  upgrade-v2…v7.sql      Migrations successives, à lancer dans l'ordre sur une base existante
+  upgrade-v2…v8.sql      Migrations successives, à lancer dans l'ordre sur une base existante
   cron-rappels.sql       pg_cron + pg_net -> appelle la fonction notify tous les jours
   functions/notify/      Edge Function d'envoi des notifications push
+  functions/ics/         Edge Function qui va chercher un calendrier .ics par son lien (CORS), coachs seulement
   emails/                Modèles d'e-mails Supabase, générés par build.py
 ```
 
@@ -107,20 +109,32 @@ Le tout premier coach se nomme en SQL : `update profiles set is_admin = true whe
 - **Résultat saisi par l'adhérent** : bouton « Mon résultat » sur une course du jour ou passée ; il peut le corriger ou le supprimer.
 - **Saisie groupée des temps** : dès le jour de la course, le coach voit les inscrits sans résultat et saisit tout d'un coup.
   « Pas couru » sur un inscrit « J'y vais » supprime son inscription.
+- **Connexion** : e-mail/mot de passe **ou compte Google** (`signInWithGoogle` → OAuth Supabase).
+  Le trigger `handle_new_user` (v8) remplit le profil depuis `first_name`/`last_name` (inscription e-mail)
+  ou `given_name`/`family_name`/`name`/`picture` (Google). Si le nom reste vide, `App.jsx` affiche
+  `CompleteProfile` avant tout (même avant l'écran « en attente » : le coach doit savoir qui il valide).
+  Un compte Google passe par la validation d'un coach comme les autres.
+- **Import de calendrier** (coach, onglet Courses) : `lib/ics.js` lit un .ics (fichier, lien via Edge Function `ics`,
+  ou texte collé), devine discipline et distance depuis le titre, puis `ImportRaces.jsx` affiche un aperçu
+  modifiable avec détection des doublons (même nom + même date). Pas de notification à l'import.
 - **Notifications** : types `session_new`, `session_updated`, `session_cancelled`, `race_new`, `results`, `test`,
   plus `daily` déclenché par pg_cron (rappel veille de séance, alerte minimum non atteint, rappel J-7 avant une course).
 
-## État de l'infrastructure (au 24 septembre 2026)
+## État de l'infrastructure (au 30 octobre 2026)
 
 - Base Supabase en place (région Paris, eu-west-3) ; migrations v2 à v5 passées, app en ligne depuis le 24/09/2026
-  (les coachs ont un accès et testent). **v6 puis v7 à lancer** si ce n'est pas déjà fait, avant de déployer la version qui va avec.
+  (les coachs ont un accès et testent). **v6, v7 puis v8 à lancer** si ce n'est pas déjà fait, avant de déployer la version qui va avec.
+- Première présentation aux gérants faite : demandes retenues = connexion Google et import du calendrier des courses
+  (code fait d'abord dans Claude chat sur une vieille base, puis réintégré ici ; sa migration « v5 Google » est devenue la v8).
+- **Connexion Google** : code en place, mais il reste à créer le client OAuth côté Google Cloud et à le
+  renseigner dans Supabase (procédure dans le README). Tant que ce n'est pas fait, le bouton renvoie une erreur.
+- **Edge Function `ics`** à déployer pour l'import de calendrier par lien ; l'import par fichier .ics marche sans elle.
 - **E-mails désactivés.** Un essai avec Brevo a échoué et le SMTP a été désactivé. Dans Supabase,
   « Confirm email » est décoché pour que les inscriptions marchent sans e-mail.
   Blocage : le club a bien le domaine `asoa-antibes.fr` (site IONOS MyWebsite), mais les accès DNS et
   une boîte mail sur ce domaine manquent. Il faut les demander au bureau. Tant qu'il n'y a pas d'e-mail :
   pas de « mot de passe oublié », et n'importe qui peut créer un compte.
 - **Notifications push pas encore déployées** (Edge Function `notify` + clés VAPID + cron à faire).
-- Pas encore mis en ligne ni présenté aux gérants du club au moment d'écrire ces lignes.
 
 ## Pièges connus
 
