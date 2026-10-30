@@ -565,3 +565,10 @@ table.results { width: 100%; border-collapse: collapse; font-size: 15px; }
 .imp-head small { font-size: 13px; color: var(--muted); }
 .bulk-list .check { align-items: flex-start; min-height: 0; gap: 10px; }
 .bulk-list .check input { margin-top: 3px; }
+.imp-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+.imp-tags em { font: 600 11px/1 var(--body); font-style: normal; padding: 3px 6px; border-radius: 3px; background: var(--paper); border: 1px solid var(--line); color: var(--muted); }
+.imp-name { display: flex; flex-direction: column; gap: 3px; font-size: 13px; color: var(--muted); }
+.imp-name input, .imp-format input { min-height: 38px; padding: 0 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); font-size: 15px; }
+.imp-formats { display: flex; flex-direction: column; gap: 6px; }
+.imp-format { display: grid; grid-template-columns: 1fr 72px 36px; gap: 6px; align-items: center; }
+.imp-format .icon-btn { width: 36px; height: 36px; }

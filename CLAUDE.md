@@ -115,8 +115,11 @@ Le tout premier coach se nomme en SQL : `update profiles set is_admin = true whe
   `CompleteProfile` avant tout (même avant l'écran « en attente » : le coach doit savoir qui il valide).
   Un compte Google passe par la validation d'un coach comme les autres.
 - **Import de calendrier** (coach, onglet Courses) : `lib/ics.js` lit un .ics (fichier, lien via Edge Function `ics`,
-  ou texte collé), devine discipline et distance depuis le titre, puis `ImportRaces.jsx` affiche un aperçu
-  modifiable avec détection des doublons (même nom + même date). Pas de notification à l'import.
+  ou texte collé). Réglé sur l'agenda Google du club (conventions détaillées dans le README) : distances + D+ lus dans la
+  description (plusieurs distances = épreuve à formats, enregistrée comme le formulaire « + Course »), discipline d'après
+  les emojis/étiquettes ([CT], ⛰️, 🏊…), non-courses (🏟 🏛 🏞 🧭) et « (a confirmer) » décochés, doublons de l'agenda
+  regroupés (même nom à ±1 jour). `ImportRaces.jsx` : aperçu modifiable (formats éditables), passées masquées,
+  doublons avec l'app détectés (même nom à ±1 jour), bouton bloqué pendant l'import. Pas de notification à l'import.
 - **Notifications** : types `session_new`, `session_updated`, `session_cancelled`, `race_new`, `results`, `test`,
   plus `daily` déclenché par pg_cron (rappel veille de séance, alerte minimum non atteint, rappel J-7 avant une course).
 

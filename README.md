@@ -211,13 +211,28 @@ onglet **Courses → icône flèche** (à côté de « + Course »). Trois faço
 | **Lien du calendrier** | Google Agenda → Paramètres → ton agenda → *Intégrer l'agenda* → « Adresse secrète au format iCal ». Pas besoin de rendre l'agenda public, mais la fonction `ics` doit être déployée (voir plus bas). |
 | **Coller le texte** | Dépannage : on colle le contenu d'un .ics. |
 
-L'app lit les événements et **devine** la discipline et la distance d'après le titre
-(« Semi-marathon de Nice » → course à pied, 21,1 km ; « Trail du Baou - 24 km » → trail, 24 km ;
-« Ironman » → triathlon, 226 km). Tout reste modifiable avant d'importer, ligne par ligne.
-Les courses déjà présentes (même nom, même date) sont signalées et non cochées, donc on peut réimporter
-le même agenda sans créer de doublons. Les événements passés et annulés sont écartés par défaut.
-Une distance est obligatoire : c'est elle qui compte pour le challenge.
-L'import ne déclenche pas de notification (on ne veut pas 20 alertes d'un coup).
+L'app lit les événements et **devine** tout ce qu'elle peut. Tout reste modifiable avant d'importer, ligne par ligne.
+Le lecteur a été réglé sur l'agenda Google du club (485 événements en octobre 2026) :
+
+- **Distances et formats** lus dans la **description** : « 9km (125m) / 16km (330m) / 27km (500m) » donne
+  une épreuve à 3 formats « 27 km · 500 D+ », « 16 km · 330 D+ »… Le D+ est compris en « (950m) », « (950 m) », « 450d+ ».
+  « Samedi - KV : 4,8km (1200m) » donne « KV 4,8 km · 1200 D+ ». Sur route, « 42km » / « 21km » deviennent Marathon / Semi.
+  « Format M / Format L » (triathlon, duathlon, aquathlon) donne « Distance M » (51,5 km), « Distance L » (113 km)…
+  Sans rien dans la description, on regarde le titre (« Corrida 10k », « 12 Bornes », « Semi-marathon »).
+- **Discipline** d'après les emojis et étiquettes du club : ⛰️ 🧗 [CT] [CTL] → trail ; 🏊 ou triathlon / duathlon /
+  aquathlon / swimrun / run & bike → triathlon ; le reste → course à pied (un « Urban Trail » marqué 🏃 reste sur route).
+- **Pas des courses** (décochées d'office) : 🏟 entraînements, 🏛 👩‍🏫 🏆 🍽 vie du club, 🏞 sorties, 🧭 courses d'orientation.
+- **Doublons de l'agenda regroupés** : « X (a confirmer) » + « X » le même jour, ou une course sur deux jours de week-end.
+  Une date seulement « à confirmer » est décochée d'office.
+- **Nom nettoyé** (sans emojis, étiquettes ni « (a confirmer) »), description sans HTML, lien d'inscription repris de la description.
+
+Les courses déjà présentes dans l'app (même nom, à un jour près) sont signalées et non cochées, donc on peut
+réimporter le même agenda sans créer de doublons. Les événements passés sont masqués (une case les affiche).
+Une distance est obligatoire : c'est elle qui compte pour le challenge. En cas d'oubli, l'écran amène directement
+sur le champ à compléter. L'import ne déclenche pas de notification (on ne veut pas 80 alertes d'un coup).
+
+> **Pour la personne qui tient l'agenda** : pour que l'import marche bien, il suffit de garder les habitudes actuelles,
+> c'est-à-dire mettre les distances dans la description sous la forme `16km (950m)`, une par ligne ou séparées par « / ».
 
 Pour l'import par lien, déploie la petite fonction qui va chercher le calendrier
 (le navigateur ne peut pas le faire lui-même, règles CORS) :
